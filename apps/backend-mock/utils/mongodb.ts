@@ -21,6 +21,43 @@ export interface SystemUser {
   homePath?: string;
 }
 
+export interface RagChunk {
+  _id?: string;
+  collection: string;
+  docId: string;
+  chunkId: string;
+  content: string;
+  embedding: number[];
+  metadata?: Record<string, any>;
+  createdAt: string;
+}
+
+export type ChatRole = 'system' | 'user' | 'assistant' | 'tool';
+
+export interface ChatSession {
+  _id?: string;
+  sessionId: string;
+  userId?: string;
+  title?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ChatMessage {
+  _id?: string;
+  sessionId: string;
+  role: ChatRole;
+  content: string;
+  createdAt: string;
+  contextChunks?: Array<{
+    collection: string;
+    docId: string;
+    chunkId: string;
+    score: number;
+    content: string;
+  }>;
+}
+
 /**
  * Kết nối MongoDB
  */
@@ -62,6 +99,45 @@ export async function getUsersCollection(): Promise<Collection<SystemUser>> {
     return database.collection<SystemUser>('users');
   } catch (error) {
     console.error('❌ Error getting users collection:', error);
+    throw error;
+  }
+}
+
+/**
+ * Lấy collection chứa các chunk tài liệu đã nhúng
+ */
+export async function getRagChunksCollection(): Promise<Collection<RagChunk>> {
+  try {
+    const database = await connectMongoDB();
+    return database.collection<RagChunk>('rag_chunks');
+  } catch (error) {
+    console.error('❌ Error getting rag chunks collection:', error);
+    throw error;
+  }
+}
+
+/**
+ * Lấy collection sessions chat
+ */
+export async function getChatSessionsCollection(): Promise<Collection<ChatSession>> {
+  try {
+    const database = await connectMongoDB();
+    return database.collection<ChatSession>('chat_sessions');
+  } catch (error) {
+    console.error('❌ Error getting chat sessions collection:', error);
+    throw error;
+  }
+}
+
+/**
+ * Lấy collection messages chat
+ */
+export async function getChatMessagesCollection(): Promise<Collection<ChatMessage>> {
+  try {
+    const database = await connectMongoDB();
+    return database.collection<ChatMessage>('chat_messages');
+  } catch (error) {
+    console.error('❌ Error getting chat messages collection:', error);
     throw error;
   }
 }

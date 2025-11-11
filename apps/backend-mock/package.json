@@ -11,8 +11,10 @@
   },
   "dependencies": {
     "@faker-js/faker": "catalog:",
+    "@xenova/transformers": "^2.17.2",
     "jsonwebtoken": "catalog:",
     "mongodb": "^6.3.0",
+    "nanoid": "^5.0.7",
     "nitropack": "catalog:"
   },
   "devDependencies": {
