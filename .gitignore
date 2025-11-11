@@ -22,7 +22,15 @@ yarn.lock
 package-lock.json
 .VSCodeCounter
 **/backend-mock/data
-
+**/models
+# specifically ignore playground models directory
+playground/models/
+playground/models/**/*
+# ignore GGUF files anywhere
+*.gguf
+# transformers cache folders
+.cache/
+apps/backend-mock/.cache/
 # local env files
 .env.local
 .env.*.local
