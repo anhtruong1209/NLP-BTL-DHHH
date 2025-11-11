@@ -30,7 +30,6 @@
   },
   "dependencies": {
     "@tanstack/vue-query": "catalog:",
-    "@vben-core/design": "workspace:*",
     "@vben-core/shadcn-ui": "workspace:*",
     "@vben-core/menu-ui": "workspace:*",
     "@vben/access": "workspace:*",

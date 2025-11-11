@@ -1,6 +1,7 @@
 {
   "framework": null,
-  "buildCommand": "pnpm install -w && pnpm vercel:build",
+  "installCommand": "pnpm install -w --no-frozen-lockfile",
+  "buildCommand": "pnpm vercel:build",
   "outputDirectory": ".vercel/output",
   "ignoreCommand": ""
 }
