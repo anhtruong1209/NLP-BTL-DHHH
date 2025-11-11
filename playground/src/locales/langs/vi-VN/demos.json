@@ -1,0 +1,72 @@
+{
+  "title": "Demo",
+  "access": {
+    "frontendPermissions": "Quyền Frontend",
+    "backendPermissions": "Quyền Backend",
+    "pageAccess": "Truy cập trang",
+    "buttonControl": "Điều khiển nút",
+    "menuVisible403": "Menu hiển thị (403)",
+    "superVisible": "Hiển thị cho Super",
+    "adminVisible": "Hiển thị cho Admin",
+    "userVisible": "Hiển thị cho User"
+  },
+  "nested": {
+    "title": "Menu lồng nhau",
+    "menu1": "Menu 1",
+    "menu2": "Menu 2",
+    "menu2_1": "Menu 2-1",
+    "menu3": "Menu 3",
+    "menu3_1": "Menu 3-1",
+    "menu3_2": "Menu 3-2",
+    "menu3_2_1": "Menu 3-2-1"
+  },
+  "outside": {
+    "title": "Trang bên ngoài",
+    "embedded": "Nhúng",
+    "externalLink": "Liên kết ngoài"
+  },
+  "badge": {
+    "title": "Huy hiệu menu",
+    "dot": "Huy hiệu chấm",
+    "text": "Huy hiệu văn bản",
+    "color": "Màu huy hiệu"
+  },
+  "activeIcon": {
+    "title": "Biểu tượng menu kích hoạt",
+    "children": "Biểu tượng kích hoạt con"
+  },
+  "fallback": {
+    "title": "Trang mặc định"
+  },
+  "features": {
+    "title": "Tính năng",
+    "hideChildrenInMenu": "Ẩn menu con",
+    "loginExpired": "Đăng nhập hết hạn",
+    "icons": "Biểu tượng",
+    "watermark": "Hình mờ",
+    "tabs": "Tab",
+    "tabDetail": "Trang chi tiết tab",
+    "fullScreen": "Toàn màn hình",
+    "clipboard": "Clipboard",
+    "menuWithQuery": "Menu với tham số",
+    "openInNewWindow": "Mở trong cửa sổ mới",
+    "fileDownload": "Tải xuống tệp"
+  },
+  "breadcrumb": {
+    "navigation": "Điều hướng breadcrumb",
+    "lateral": "Chế độ ngang",
+    "lateralDetail": "Chi tiết chế độ ngang",
+    "level": "Chế độ cấp",
+    "levelDetail": "Chi tiết chế độ cấp"
+  },
+  "vben": {
+    "title": "ChatBot-NLP-VMU",
+    "about": "Về ChatBot-NLP-VMU",
+    "document": "Tài liệu",
+    "antdv": "Phiên bản Ant Design Vue",
+    "naive-ui": "Phiên bản Naive UI",
+    "element-plus": "Phiên bản Element Plus",
+    "tdesign": "Phiên bản TDesign Vue"
+  }
+}
+

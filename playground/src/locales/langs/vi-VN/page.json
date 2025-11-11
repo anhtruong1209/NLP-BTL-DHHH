@@ -1,0 +1,17 @@
+{
+  "auth": {
+    "login": "Đăng nhập",
+    "register": "Đăng ký",
+    "codeLogin": "Đăng nhập bằng mã",
+    "qrcodeLogin": "Đăng nhập bằng QR",
+    "forgetPassword": "Quên mật khẩu",
+    "sendingCode": "Đang gửi mã...",
+    "codeSentTo": "Mã đã được gửi đến {0}"
+  },
+  "dashboard": {
+    "title": "Bảng điều khiển",
+    "analytics": "Phân tích",
+    "workspace": "Không gian làm việc"
+  }
+}
+

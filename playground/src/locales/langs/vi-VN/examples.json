@@ -1,0 +1,77 @@
+{
+  "title": "Ví dụ",
+  "modal": {
+    "title": "Modal"
+  },
+  "drawer": {
+    "title": "Ngăn kéo"
+  },
+  "ellipsis": {
+    "title": "EllipsisText"
+  },
+  "form": {
+    "title": "Biểu mẫu",
+    "basic": "Biểu mẫu cơ bản",
+    "layout": "Bố cục tùy chỉnh",
+    "query": "Biểu mẫu truy vấn",
+    "rules": "Quy tắc biểu mẫu",
+    "dynamic": "Biểu mẫu động",
+    "custom": "Component tùy chỉnh",
+    "api": "Api",
+    "merge": "Hợp nhất biểu mẫu",
+    "scrollToError": "Cuộn đến trường lỗi",
+    "upload-error": "Một số tệp tải lên thất bại",
+    "upload-urls": "URL sau khi tải tệp lên",
+    "file": "tệp",
+    "upload-image": "Nhấp để tải ảnh lên"
+  },
+  "vxeTable": {
+    "title": "Bảng Vxe",
+    "basic": "Bảng cơ bản",
+    "remote": "Tải từ xa",
+    "tree": "Bảng cây",
+    "fixed": "Cố định tiêu đề/cột",
+    "virtual": "Cuộn ảo",
+    "editCell": "Chỉnh sửa ô",
+    "editRow": "Chỉnh sửa hàng",
+    "custom-cell": "Ô tùy chỉnh",
+    "form": "Bảng biểu mẫu"
+  },
+  "captcha": {
+    "title": "Mã xác thực",
+    "pointSelection": "Mã xác thực chọn điểm",
+    "sliderCaptcha": "Mã xác thực thanh trượt",
+    "sliderRotateCaptcha": "Mã xác thực xoay",
+    "sliderTranslateCaptcha": "Mã xác thực dịch chuyển",
+    "captchaCardTitle": "Vui lòng hoàn thành xác thực bảo mật",
+    "pageDescription": "Xác minh danh tính người dùng bằng cách nhấp vào các vị trí cụ thể trong hình ảnh.",
+    "pageTitle": "Ví dụ Component Mã xác thực",
+    "basic": "Sử dụng cơ bản",
+    "titlePlaceholder": "Văn bản tiêu đề mã xác thực",
+    "captchaImageUrlPlaceholder": "Hình ảnh mã xác thực (hỗ trợ giá trị thuộc tính src của thẻ img)",
+    "hintImage": "Hình ảnh gợi ý",
+    "hintText": "Văn bản gợi ý",
+    "hintImagePlaceholder": "Hình ảnh gợi ý (hỗ trợ giá trị thuộc tính src của thẻ img)",
+    "hintTextPlaceholder": "Văn bản gợi ý",
+    "showConfirm": "Hiển thị xác nhận",
+    "hideConfirm": "Ẩn xác nhận",
+    "widthPlaceholder": "Chiều rộng hình ảnh mã xác thực Mặc định 300px",
+    "heightPlaceholder": "Chiều cao hình ảnh mã xác thực Mặc định 220px",
+    "paddingXPlaceholder": "Khoảng đệm ngang Mặc định 12px",
+    "paddingYPlaceholder": "Khoảng đệm dọc Mặc định 16px",
+    "index": "Chỉ mục:",
+    "timestamp": "Dấu thời gian:",
+    "x": "x:",
+    "y": "y:"
+  },
+  "resize": {
+    "title": "Thay đổi kích thước"
+  },
+  "layout": {
+    "col-page": "Bố cục ColPage"
+  },
+  "button-group": {
+    "title": "Nhóm nút"
+  }
+}
+
