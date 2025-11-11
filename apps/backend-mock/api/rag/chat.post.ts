@@ -9,6 +9,7 @@ import {
 	type ChatSession,
 } from '~/utils/mongodb';
 import { generateLocalCompletion } from '~/utils/local-llm';
+import { generateWithGemini } from '~/utils/gemini';
 
 interface ChatBody {
 	sessionId?: string; 
@@ -141,15 +142,21 @@ export default defineEventHandler(async (event) => {
 
 	let answer = '';
 	try {
-		console.log('[RAG][chat] generating locally...');
-		answer = await generateLocalCompletion(prompt, { maxTokens: 512, temperature: 0.7, topP: 0.9 });
+		const useGemini = !!process.env.GEMINI_API_KEY;
+		if (useGemini) {
+			console.log('[RAG][chat] generating with Gemini...');
+			answer = await generateWithGemini(prompt, { maxTokens: 512, temperature: 0.7, topP: 0.9 });
+		} else {
+			console.log('[RAG][chat] generating locally...');
+			answer = await generateLocalCompletion(prompt, { maxTokens: 512, temperature: 0.7, topP: 0.9 });
+		}
 		const t5 = Date.now();
 		console.log('[RAG][chat] generation complete, dt=', t5 - t4, 'ms', 'total=', t5 - t0, 'ms');
 	} catch (err: any) {
 		event.node.res.statusCode = 502;
 		console.error('[RAG][chat] generation error', err);
 		return {
-			error: `Local model error: ${err?.message || String(err)}`,
+			error: `Generation error: ${err?.message || String(err)}`,
 			sessionId,
 			isNewSession,
 		};

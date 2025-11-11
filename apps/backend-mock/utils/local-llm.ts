@@ -1,19 +1,37 @@
 import { pipeline, env } from '@xenova/transformers';
+import { existsSync } from 'node:fs';
+import { join } from 'node:path';
 
 // Node 22-safe local generation using @xenova/transformers (pure JS/WASM)
 // Model: Qwen2.5-0.5B-Instruct (multilingual, includes Vietnamese)
 // Reference: https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct
 
-// Use local cache directory inside project
-env.cacheDir = './.cache/transformers';
+// STRICT OFFLINE MODE:
+// We only load from a fixed local directory and NEVER attempt to download.
+// Put the contents of the Xenova/Qwen2.5-0.5B-Instruct repository into:
+// apps/backend-mock/models/qwen2.5-0.5b-instruct
+const LOCAL_MODEL_ROOT = './models/qwen2.5-0.5b-instruct';
+env.cacheDir = LOCAL_MODEL_ROOT; // limit to local dir
 env.allowLocalModels = true;
+// Disable remote entirely
+env.allowRemoteModels = false as any;
 
 let generatorPromise: Promise<any> | null = null;
 
 async function getGenerator() {
 	if (!generatorPromise) {
 		console.log('[LocalLLM] loading text-generation pipeline (Qwen2.5-0.5B-Instruct)...');
-		generatorPromise = pipeline('text-generation', 'Xenova/Qwen2.5-0.5B-Instruct');
+		// Strictly require local directory
+		const modelDir = join(LOCAL_MODEL_ROOT, 'Xenova', 'Qwen2.5-0.5B-Instruct');
+		if (!existsSync(modelDir)) {
+			throw new Error(
+				`Local model directory not found.\n` +
+				`Please download the entire repository 'Xenova/Qwen2.5-0.5B-Instruct' ` +
+				`and place it at: ${modelDir}\n` +
+				`After that, restart the backend. No network calls will be made.`,
+			);
+		}
+		generatorPromise = pipeline('text-generation', modelDir);
 	}
 	return generatorPromise;
 }

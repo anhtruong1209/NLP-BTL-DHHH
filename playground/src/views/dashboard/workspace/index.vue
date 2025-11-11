@@ -95,87 +95,101 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="p-5 space-y-4">
-    <div class="flex items-center justify-between">
-      <div class="text-xl font-semibold">ChatBot</div>
-      <div class="text-sm text-gray-600">
-        Xin chào, {{ userStore.userInfo?.realName || 'User' }}
-      </div>
-    </div>
+  <div class="p-5">
+    <a-row justify="space-between" align="middle" class="mb-4">
+      <a-col>
+        <a-typography-title :level="4" style="margin:0">ChatBot</a-typography-title>
+      </a-col>
+      <a-col>
+        <a-typography-text type="secondary">
+          Xin chào, {{ userStore.userInfo?.realName || 'User' }}
+        </a-typography-text>
+      </a-col>
+    </a-row>
 
-    <div class="flex flex-wrap gap-3 items-end">
-      <div>
-        <label class="block text-sm font-medium">Collection</label>
-        <input v-model="collection" class="border px-2 py-1 rounded w-44" placeholder="default" />
-      </div>
-      <div>
-        <label class="block text-sm font-medium">Top K</label>
-        <input v-model.number="topK" type="number" min="1" max="20" class="border px-2 py-1 rounded w-24" />
-      </div>
-      <div class="flex-1 min-w-[260px]">
-        <label class="block text-sm font-medium">Model</label>
-        <input :value="activeModelName" class="border px-2 py-1 rounded w-full bg-gray-100" readonly />
-      </div>
-      <div class="flex-1 min-w-[260px]">
-        <label class="block text-sm font-medium">System Prompt</label>
-        <input v-model="systemPrompt" class="border px-2 py-1 rounded w-full" placeholder="You are a helpful assistant..." />
-      </div>
-    </div>
+    <a-card size="small" class="mb-4">
+      <a-form layout="inline">
+        <a-form-item label="Collection">
+          <a-input v-model:value="collection" style="width:180px" placeholder="default" />
+        </a-form-item>
+        <a-form-item label="Top K">
+          <a-input-number v-model:value="topK" :min="1" :max="20" style="width:120px" />
+        </a-form-item>
+        <a-form-item label="Model" style="min-width:260px;flex:1">
+          <a-input :value="activeModelName" readonly />
+        </a-form-item>
+        <a-form-item label="System Prompt" style="min-width:260px;flex:1">
+          <a-input v-model:value="systemPrompt" placeholder="You are a helpful assistant..." />
+        </a-form-item>
+      </a-form>
+    </a-card>
 
-    <div class="flex flex-wrap gap-3 items-end">
-      <div>
-        <label class="block text-sm font-medium">Session</label>
-        <select v-model="sessionId" class="border px-2 py-1 rounded w-64">
-          <option value="">New session</option>
-          <option v-for="s in sessions" :key="s.sessionId" :value="s.sessionId">
-            {{ s.title || s.sessionId }}
-          </option>
-        </select>
-      </div>
-      <button class="bg-blue-600 text-white px-3 py-1 rounded" @click="refreshSessions" :disabled="loading">
-        Refresh Sessions
-      </button>
-      <button class="bg-gray-600 text-white px-3 py-1 rounded" @click="loadMessages" :disabled="!sessionId || loading">
-        Load Messages
-      </button>
-    </div>
+    <a-row :gutter="16" class="mb-4">
+      <a-col>
+        <a-form layout="inline">
+          <a-form-item label="Session">
+            <a-select v-model:value="sessionId" style="width:260px" :options="[{ label: 'New session', value: '' }, ...sessions.map(s=>({label: s.title || s.sessionId, value: s.sessionId}))]" />
+          </a-form-item>
+          <a-form-item>
+            <a-button type="primary" @click="refreshSessions" :loading="loading">Refresh Sessions</a-button>
+          </a-form-item>
+          <a-form-item>
+            <a-button @click="loadMessages" :disabled="!sessionId" :loading="loading">Load Messages</a-button>
+          </a-form-item>
+        </a-form>
+      </a-col>
+    </a-row>
 
-    <div class="grid md:grid-cols-3 gap-4">
-      <div class="md:col-span-2 border rounded p-3 h-[60vh] overflow-auto bg-white">
-        <div v-if="messages.length === 0" class="text-gray-500">No messages yet. Start chatting below.</div>
-        <div v-for="(m, idx) in messages" :key="idx" class="mb-3">
-          <div class="text-xs text-gray-500">{{ m.role.toUpperCase() }}</div>
-          <div class="whitespace-pre-wrap">{{ m.content }}</div>
-          <details v-if="m.contextChunks?.length" class="mt-1">
-            <summary class="cursor-pointer text-xs text-gray-600">Context ({{ m.contextChunks.length }})</summary>
-            <div class="mt-1 space-y-2">
-              <div v-for="(c, cidx) in m.contextChunks" :key="cidx" class="p-2 bg-gray-50 rounded border">
-                <div class="text-xs text-gray-500">Score: {{ c.score.toFixed(4) }} • {{ c.docId }} / {{ c.chunkId }}</div>
-                <div class="text-sm whitespace-pre-wrap">{{ c.content }}</div>
-              </div>
-            </div>
-          </details>
-        </div>
-      </div>
-      <div class="md:col-span-1 border rounded p-3 space-y-3 bg-white">
-        <div>
-          <div class="font-medium mb-1">Quick Ingest</div>
-          <textarea v-model="ingestText" class="border w-full h-40 p-2 rounded" placeholder="Paste text to index"></textarea>
-          <div class="flex gap-2 mt-2">
-            <button class="bg-green-600 text-white px-3 py-1 rounded" @click="doIngest" :disabled="loading || !ingestText.trim()">
-              Ingest
-            </button>
-            <button class="bg-gray-300 px-3 py-1 rounded" @click="ingestText=''">Clear</button>
-          </div>
-          <div class="text-xs text-gray-500 mt-1">Stored to collection "{{ collection || 'default' }}".</div>
-        </div>
-      </div>
-    </div>
+    <a-row :gutter="16">
+      <a-col :span="16">
+        <a-card size="small" style="height:60vh;overflow:auto">
+          <a-empty v-if="messages.length === 0" description="No messages yet. Start chatting below." />
+          <a-list v-else :data-source="messages" :split="false">
+            <template #renderItem="{ item }">
+              <a-list-item>
+                <a-typography-text type="secondary" style="font-size:12px">{{ item.role.toUpperCase() }}</a-typography-text>
+                <div class="whitespace-pre-wrap">{{ item.content }}</div>
+                <a-collapse v-if="item.contextChunks?.length" ghost class="mt-1">
+                  <a-collapse-panel :header="`Context (${item.contextChunks.length})`" key="ctx">
+                    <a-list :data-source="item.contextChunks" size="small">
+                      <template #renderItem="{ item: c }">
+                        <a-list-item>
+                          <a-typography-text type="secondary" style="font-size:12px">
+                            Score: {{ c.score.toFixed(4) }} • {{ c.docId }} / {{ c.chunkId }}
+                          </a-typography-text>
+                          <div class="whitespace-pre-wrap text-sm">{{ c.content }}</div>
+                        </a-list-item>
+                      </template>
+                    </a-list>
+                  </a-collapse-panel>
+                </a-collapse>
+              </a-list-item>
+            </template>
+          </a-list>
+        </a-card>
+      </a-col>
+      <a-col :span="8">
+        <a-card title="Quick Ingest" size="small">
+          <a-textarea v-model:value="ingestText" :rows="8" placeholder="Paste text to index" />
+          <a-space class="mt-2">
+            <a-button type="primary" @click="doIngest" :disabled="!ingestText.trim()" :loading="loading">Ingest</a-button>
+            <a-button @click="ingestText = ''">Clear</a-button>
+          </a-space>
+          <a-typography-text type="secondary" style="display:block;margin-top:6px">
+            Stored to collection "{{ collection || 'default' }}".
+          </a-typography-text>
+        </a-card>
+      </a-col>
+    </a-row>
 
-    <form @submit.prevent="send" class="flex gap-2 items-end">
-      <textarea v-model="input" class="border flex-1 min-h-[44px] p-2 rounded" placeholder="Type your message..."></textarea>
-      <button class="bg-blue-600 text-white px-4 py-2 rounded" :disabled="loading || !input.trim()">Send</button>
-    </form>
+    <a-form @submit.prevent="send" layout="inline" class="mt-4">
+      <a-form-item style="flex:1;min-width:240px">
+        <a-textarea v-model:value="input" :rows="2" placeholder="Type your message..." />
+      </a-form-item>
+      <a-form-item>
+        <a-button type="primary" @click="send" :disabled="!input.trim()" :loading="loading">Send</a-button>
+      </a-form-item>
+    </a-form>
   </div>
 </template>
 

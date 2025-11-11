@@ -58,3 +58,5 @@ vite.config.ts.*
 *.sw?
 .history
 .cursor
+
+.vercel

@@ -613,6 +613,9 @@ importers:
       '@faker-js/faker':
         specifier: 'catalog:'
         version: 9.9.0
+      '@google/generative-ai':
+        specifier: ^0.21.0
+        version: 0.21.0
       '@xenova/transformers':
         specifier: ^2.17.2
         version: 2.17.2
@@ -3197,6 +3200,10 @@ packages:
 
   '@floating-ui/vue@1.1.9':
     resolution: {integrity: sha512-BfNqNW6KA83Nexspgb9DZuz578R7HT8MZw1CfK9I6Ah4QReNWEJsXWHN+SdmOVLNGmTPDi+fDT535Df5PzMLbQ==}
+
+  '@google/generative-ai@0.21.0':
+    resolution: {integrity: sha512-7XhUbtnlkSEZK15kN3t+tzIMxsbKm/dSkKBFalj+20NvPKe1kBY7mR2P7vuijEn+f06z5+A8bVGKO0v39cr6Wg==}
+    engines: {node: '>=18.0.0'}
 
   '@huggingface/jinja@0.2.2':
     resolution: {integrity: sha512-/KPde26khDUIPkTGU82jdtTW9UAuvUTumCAbFs/7giR0SxsvZC4hru51PBvpijH6BVkHcROcvZM/lpy5h1jRRA==}
@@ -11895,6 +11902,8 @@ snapshots:
     transitivePeerDependencies:
       - '@vue/composition-api'
       - vue
+
+  '@google/generative-ai@0.21.0': {}
 
   '@huggingface/jinja@0.2.2': {}
 
