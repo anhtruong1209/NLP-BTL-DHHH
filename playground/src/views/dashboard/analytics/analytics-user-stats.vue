@@ -2,6 +2,7 @@
 import type { EchartsUIType } from '@vben/plugins/echarts';
 import { onMounted, ref, watch } from 'vue';
 import { EchartsUI, useEcharts } from '@vben/plugins/echarts';
+import { $t } from '#/locales';
 
 interface Props {
   data?: Array<{ userId: string; sessionCount: number }>;
@@ -34,7 +35,7 @@ function updateChart() {
       trigger: 'axis',
     },
     xAxis: {
-      data: props.data.map(u => `User ${u.userId}`),
+      data: props.data.map(u => `${$t('dashboard.analytics.user')} ${u.userId}`),
       type: 'category',
     },
     yAxis: {
@@ -49,7 +50,7 @@ function updateChart() {
         itemStyle: {
           color: '#019680',
         },
-        name: 'Sessions',
+        name: $t('dashboard.analytics.sessions'),
         type: 'bar',
       },
     ],

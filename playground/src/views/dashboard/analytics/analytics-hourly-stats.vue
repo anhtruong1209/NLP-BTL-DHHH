@@ -2,6 +2,7 @@
 import type { EchartsUIType } from '@vben/plugins/echarts';
 import { onMounted, ref, watch } from 'vue';
 import { EchartsUI, useEcharts } from '@vben/plugins/echarts';
+import { $t } from '#/locales';
 
 interface Props {
   data?: Array<{ hour: string; count: number }>;
@@ -62,7 +63,7 @@ function updateChart() {
         itemStyle: {
           color: '#4f69fd',
         },
-        name: 'Messages',
+        name: $t('dashboard.analytics.messages'),
         type: 'bar',
       },
     ],

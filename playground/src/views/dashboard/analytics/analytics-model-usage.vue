@@ -2,6 +2,7 @@
 import type { EchartsUIType } from '@vben/plugins/echarts';
 import { onMounted, ref, watch } from 'vue';
 import { EchartsUI, useEcharts } from '@vben/plugins/echarts';
+import { $t } from '#/locales';
 
 interface Props {
   data?: Array<{ modelKey: string; count: number }>;
@@ -53,7 +54,7 @@ function updateChart() {
         labelLine: {
           show: false,
         },
-        name: 'Model Usage',
+        name: $t('dashboard.analytics.modelUsageDistribution'),
         radius: ['40%', '65%'],
         type: 'pie',
       },

@@ -105,8 +105,6 @@ export default defineEventHandler(async (event) => {
 			event.node.res.statusCode = 400;
 			return {
 				error: 'Invalid modelKey: Please select a model from the dropdown, not an API key.',
-				sessionId,
-				isNewSession,
 			};
 		}
 		

@@ -14,7 +14,7 @@ import {
   SelectItem,
 } from '@vben-core/shadcn-ui';
 import { ragChat, ragMessages, ragSessions, ragPinSession, ragUpdateSessionTitle, ragDeleteSession } from '#/api/rag';
-import { getModels, type AIModel } from '#/api/models';
+import { getAvailableModels, type AIModel } from '#/api/models';
 
 const userStore = useUserStore();
 const currentUserId = computed(() => userStore.userInfo?.id || userStore.userInfo?.username || 'guest');
@@ -33,17 +33,16 @@ const loadingModels = ref<boolean>(false);
 async function loadModels() {
   loadingModels.value = true;
   try {
-    const res: any = await getModels();
+    // Use public endpoint that doesn't require admin access
+    const res: any = await getAvailableModels();
     // requestClient automatically extracts 'data' field
     const models: AIModel[] = res?.models || [];
     
-    // Filter only enabled models and map to select format
-    const enabledModels = models
-      .filter(m => m.enabled)
-      .map(m => ({
-        value: m.modelKey,
-        label: m.name,
-      }));
+    // Map to select format (models are already filtered to enabled only)
+    const enabledModels = models.map(m => ({
+      value: m.modelKey,
+      label: m.name,
+    }));
     
     availableModels.value = enabledModels;
     
@@ -52,10 +51,12 @@ async function loadModels() {
       const firstModel = enabledModels[0];
       if (firstModel) {
         selectedModel.value = firstModel.value;
+        console.log('[UI] Set default model:', firstModel.value);
       }
     }
     
     console.log('[UI] Loaded models:', enabledModels);
+    console.log('[UI] Selected model:', selectedModel.value);
   } catch (err: any) {
     console.error('[UI] Load models error:', err);
     // Fallback to default models if API fails
@@ -202,6 +203,25 @@ async function send() {
   // Use array assignment to ensure reactivity
   messages.value = [...messages.value, userMessage];
   console.log('[UI] Added user message, total messages:', messages.value.length);
+  
+  // Validate selectedModel before sending
+  if (!selectedModel.value || selectedModel.value.trim() === '') {
+    antdMessage.error('Please select a model first');
+    return;
+  }
+  
+  // Additional validation: ensure it's not an API key
+  if (selectedModel.value.length > 30 && (
+    selectedModel.value.startsWith('AIza') || 
+    selectedModel.value.startsWith('sk-') ||
+    /^[A-Za-z0-9_-]{40,}$/.test(selectedModel.value)
+  )) {
+    antdMessage.error('Invalid model selection. Please select a model from the dropdown.');
+    console.error('[UI] Invalid modelKey detected:', selectedModel.value);
+    return;
+  }
+  
+  console.log('[UI] Sending chat with model:', selectedModel.value);
   
   try {
     const res: any = await ragChat({

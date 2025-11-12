@@ -25,6 +25,13 @@ export function getModels() {
   return requestClient.get('/models/list');
 }
 
+/**
+ * Get available (enabled) models for chat - public endpoint, no admin required
+ */
+export function getAvailableModels() {
+  return requestClient.get('/models/available');
+}
+
 export function getModel(modelId: string) {
   return requestClient.get(`/models/${modelId}`);
 }
