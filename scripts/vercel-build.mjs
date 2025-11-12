@@ -21,6 +21,7 @@ async function run() {
     '@vben-core/popup-ui',
     '@vben-core/menu-ui',
     '@vben-core/shadcn-ui',
+    '@vben-core/composables',
   ];
 
   for (const ws of workspacesToBuildFirst) {
