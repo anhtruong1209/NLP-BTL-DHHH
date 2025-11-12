@@ -15,16 +15,22 @@ const feDist = resolve(root, 'playground/dist');
 
 async function run() {
   // Install already handled by Vercel; ensure builds run in monorepo
-  const designWorkspace = '@vben-core/design';
-  await runCmd('pnpm', ['-F', designWorkspace, 'build']);
-  await runCmd('pnpm', ['-F', '@vben-core/form-ui', 'build']).catch((error) => {
-    const message = String(error?.message || '');
-    if (message.includes(`${designWorkspace}`)) {
-      console.log('[vercel-build] @vben-core/form-ui build skipped (depends on @vben-core/design)');
-      return;
-    }
-    throw error;
-  });
+  const workspacesToBuildFirst = [
+    '@vben-core/design',
+    '@vben-core/form-ui',
+    '@vben-core/popup-ui',
+  ];
+
+  for (const ws of workspacesToBuildFirst) {
+    await runCmd('pnpm', ['-F', ws, 'build']).catch((error) => {
+      const message = String(error?.message || '');
+      if (message.includes('not found') || message.includes('missing script')) {
+        console.log(`[vercel-build] ${ws} build skipped (no build script or package missing).`);
+        return;
+      }
+      throw error;
+    });
+  }
   await runCmd('pnpm', ['-F', '@vben/backend-mock', 'build']);
   await runCmd('pnpm', ['-F', '@vben/playground', 'build']);
 
