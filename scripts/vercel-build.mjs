@@ -19,6 +19,8 @@ async function run() {
     '@vben-core/design',
     '@vben-core/form-ui',
     '@vben-core/popup-ui',
+    '@vben-core/menu-ui',
+    '@vben-core/shadcn-ui',
   ];
 
   for (const ws of workspacesToBuildFirst) {
