@@ -1,6 +1,6 @@
 {
   "framework": null,
-  "installCommand": "pnpm install -w --no-frozen-lockfile",
+  "installCommand": "pnpm install --recursive --no-frozen-lockfile",
   "buildCommand": "pnpm vercel:build",
   "outputDirectory": ".vercel/output",
   "ignoreCommand": "",
