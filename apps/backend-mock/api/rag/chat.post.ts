@@ -5,10 +5,12 @@ import {
 	getChatMessagesCollection,
 	getChatSessionsCollection,
 	getRagChunksCollection,
+	getModelUsageCollection,
+	getAIModelsCollection,
 	type ChatMessage,
 	type ChatSession,
+	type ModelUsage,
 } from '~/utils/mongodb';
-import { generateLocalCompletion } from '~/utils/local-llm';
 import { generateWithGemini } from '~/utils/gemini';
 
 interface ChatBody {
@@ -17,7 +19,7 @@ interface ChatBody {
 	message: string;
 	topK?: number;
 	collection?: string;
-	// modelUrl?: string; // removed external call
+	model?: string;
 	historyLimit?: number;
 	systemPrompt?: string;
 }
@@ -28,23 +30,44 @@ function buildPrompt(params: {
 	history: Array<{ role: string; content: string }>;
 	userMessage: string;
 }) {
-	const system = params.systemPrompt?.trim() || 'You are a helpful assistant. Answer based only on the provided context. If the answer is not in the context, say you don’t know.';
-	const contextText =
-		params.context
-			.map((c, idx) => `[[Chunk ${idx + 1}]]\n${c.content}`)
-			.join('\n\n') || 'No context provided.';
+	// Improved system prompt: Use context if available, but also use general knowledge
+	const defaultSystem = 'You are a helpful and friendly AI assistant. You can answer questions using:\n' +
+		'1. The provided context (if available and relevant)\n' +
+		'2. Your general knowledge\n' +
+		'3. The conversation history\n\n' +
+		'Be natural, conversational, and helpful. If context is provided, prioritize it, but you can still answer general questions using your knowledge.';
+	
+	const system = params.systemPrompt?.trim() || defaultSystem;
+	
+	// Build context text - only include if there's actual context
+	const hasContext = params.context && params.context.length > 0;
+	const contextText = hasContext
+		? params.context
+			.map((c, idx) => `[[Relevant Information ${idx + 1}]]\n${c.content}`)
+			.join('\n\n')
+		: null;
+	
 	const historyText = params.history
-		.map((m) => `${m.role.toUpperCase()}: ${m.content}`)
+		.map((m) => `${m.role === 'user' ? 'User' : 'Assistant'}: ${m.content}`)
 		.join('\n');
-	return [
-		`SYSTEM:\n${system}`,
-		`CONTEXT:\n${contextText}`,
-		historyText ? `HISTORY:\n${historyText}` : '',
-		`USER:\n${params.userMessage}`,
-		`ASSISTANT:`,
-	]
-		.filter(Boolean)
-		.join('\n\n');
+	
+	// Build prompt with conditional context
+	const promptParts = [
+		`System Instructions:\n${system}`,
+	];
+	
+	if (contextText) {
+		promptParts.push(`Relevant Context:\n${contextText}`);
+	}
+	
+	if (historyText) {
+		promptParts.push(`Conversation History:\n${historyText}`);
+	}
+	
+	promptParts.push(`User Question: ${params.userMessage}`);
+	promptParts.push(`Your Response:`);
+	
+	return promptParts.join('\n\n');
 }
 
 export default defineEventHandler(async (event) => {
@@ -59,10 +82,61 @@ export default defineEventHandler(async (event) => {
 	const collection = body.collection?.trim() || 'default';
 	const topK = Math.max(1, Math.min(20, body.topK ?? 5));
 	const historyLimit = Math.max(0, Math.min(50, body.historyLimit ?? 10));
+	const modelKey = body.model?.trim() || 'gemini-2.5-flash';
 
 	const sessionsCol = await getChatSessionsCollection();
 	const messagesCol = await getChatMessagesCollection();
 	const ragCol = await getRagChunksCollection();
+	const usageCol = await getModelUsageCollection();
+	const modelsCol = await getAIModelsCollection();
+
+	// Get model config from database
+	let modelConfig: any = null;
+	if (modelKey) {
+		// Validate modelKey is not an API key (API keys are usually long strings starting with specific prefixes)
+		const looksLikeApiKey = modelKey.length > 30 && (
+			modelKey.startsWith('AIza') || // Google API key
+			modelKey.startsWith('sk-') || // OpenAI API key
+			modelKey.match(/^[A-Za-z0-9_-]{40,}$/) // Generic long alphanumeric string
+		);
+		
+		if (looksLikeApiKey) {
+			console.error(`[RAG][chat] Invalid modelKey: looks like an API key. Please use modelKey from database, not API key.`);
+			event.node.res.statusCode = 400;
+			return {
+				error: 'Invalid modelKey: Please select a model from the dropdown, not an API key.',
+				sessionId,
+				isNewSession,
+			};
+		}
+		
+		modelConfig = await modelsCol.findOne({ 
+			modelKey, 
+			enabled: true 
+		});
+		if (!modelConfig) {
+			console.warn(`[RAG][chat] Model ${modelKey} not found or disabled, using fallback`);
+		}
+	}
+
+	// Determine which model to use
+	const useModel = modelConfig?.modelKey || modelKey;
+	const useModelType = modelConfig?.type || 'gemini';
+	const apiKey = modelConfig?.apiKey || process.env.GEMINI_API_KEY;
+	const modelName = modelConfig?.name || useModel;
+
+	console.log('[RAG][chat] model lookup', {
+		requestedModelKey: modelKey,
+		foundModel: modelConfig ? {
+			modelKey: modelConfig.modelKey,
+			name: modelConfig.name,
+			type: modelConfig.type,
+			hasApiKey: !!modelConfig.apiKey,
+		} : null,
+		useModel,
+		useModelType,
+		hasApiKey: !!apiKey,
+	});
 
 	console.log('[RAG][chat] start', {
 		collection,
@@ -72,6 +146,9 @@ export default defineEventHandler(async (event) => {
 		msgLen: message.length,
 	});
 
+	// Normalize userId to string for consistency
+	const userId = body.userId ? String(body.userId).trim() : undefined;
+
 	let sessionId = body.sessionId?.trim();
 	let isNewSession = false;
 	if (!sessionId) {
@@ -80,13 +157,20 @@ export default defineEventHandler(async (event) => {
 		const now = new Date().toISOString();
 		const sessionDoc: ChatSession = {
 			sessionId,
-			userId: body.userId,
+			userId: userId,
 			title: message.slice(0, 50),
 			createdAt: now,
 			updatedAt: now,
 		};
 		await sessionsCol.insertOne(sessionDoc);
-		console.log('[RAG][chat] created session', sessionId);
+		console.log('[RAG][chat] created session', sessionId, 'for user', userId);
+	} else {
+		// Update existing session's userId if not set
+		const existingSession = await sessionsCol.findOne({ sessionId });
+		if (existingSession && userId && !existingSession.userId) {
+			await sessionsCol.updateOne({ sessionId }, { $set: { userId } });
+			console.log('[RAG][chat] updated session userId', sessionId, 'to', userId);
+		}
 	}
 
 	// Save user message
@@ -142,13 +226,31 @@ export default defineEventHandler(async (event) => {
 
 	let answer = '';
 	try {
-		const useGemini = !!process.env.GEMINI_API_KEY;
-		if (useGemini) {
-			console.log('[RAG][chat] generating with Gemini...');
-			answer = await generateWithGemini(prompt, { maxTokens: 512, temperature: 0.7, topP: 0.9 });
+		console.log('[RAG][chat] generating with model...', { 
+			modelKey: useModel, 
+			type: useModelType,
+			modelName 
+		});
+		
+		if (useModelType === 'gemini') {
+			if (!apiKey) {
+				throw new Error('Gemini API key is required. Please configure the model in the database.');
+			}
+			// Use config from database or defaults
+			const maxTokens = modelConfig?.defaultMaxTokens ?? 2048;
+			const temperature = modelConfig?.defaultTemperature ?? 0.8;
+			const topP = modelConfig?.defaultTopP ?? 0.95;
+			
+			answer = await generateWithGemini(prompt, { 
+				apiKey, // Pass API key from database
+				model: useModel, 
+				maxTokens, 
+				temperature, 
+				topP 
+			});
 		} else {
-			console.log('[RAG][chat] generating locally...');
-			answer = await generateLocalCompletion(prompt, { maxTokens: 512, temperature: 0.7, topP: 0.9 });
+			// For local models, you can add logic here later
+			throw new Error(`Model type ${useModelType} is not yet supported`);
 		}
 		const t5 = Date.now();
 		console.log('[RAG][chat] generation complete, dt=', t5 - t4, 'ms', 'total=', t5 - t0, 'ms');
@@ -181,6 +283,18 @@ export default defineEventHandler(async (event) => {
 		{ sessionId },
 		{ $set: { updatedAt: new Date().toISOString() } },
 	);
+	
+	// Save model usage statistics
+	const usageDoc: ModelUsage = {
+		modelKey: useModel,
+		userId: userId,
+		sessionId,
+		messageId: assistantMsg._id?.toString(),
+		timestamp: new Date().toISOString(),
+		responseTime: Date.now() - t4,
+	};
+	await usageCol.insertOne(usageDoc);
+	
 	const t6 = Date.now();
 	console.log('[RAG][chat] saved assistant message, totalDt=', t6 - t0, 'ms');
 

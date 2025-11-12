@@ -7,9 +7,12 @@ export namespace SystemRoleApi {
     [key: string]: any;
     id: string;
     name: string;
-    permissions: string[];
+    code: string;
+    permissions?: string[];
     remark?: string;
     status: 0 | 1;
+    createTime?: string;
+    updateTime?: string;
   }
 }
 

@@ -1,46 +1,10 @@
-import { faker } from '@faker-js/faker';
 import { eventHandler, getQuery } from 'h3';
 import { verifyAccessToken } from '~/utils/jwt-utils';
-import { getMenuIds, MOCK_MENU_LIST } from '~/utils/mock-data';
+import { getRolesCollection } from '~/utils/mongodb';
 import { unAuthorizedResponse, usePageResponseSuccess } from '~/utils/response';
 
-const formatterCN = new Intl.DateTimeFormat('zh-CN', {
-  timeZone: 'Asia/Shanghai',
-  year: 'numeric',
-  month: '2-digit',
-  day: '2-digit',
-  hour: '2-digit',
-  minute: '2-digit',
-  second: '2-digit',
-});
-
-const menuIds = getMenuIds(MOCK_MENU_LIST);
-
-function generateMockDataList(count: number) {
-  const dataList = [];
-
-  for (let i = 0; i < count; i++) {
-    const dataItem: Record<string, any> = {
-      id: faker.string.uuid(),
-      name: faker.commerce.product(),
-      status: faker.helpers.arrayElement([0, 1]),
-      createTime: formatterCN.format(
-        faker.date.between({ from: '2022-01-01', to: '2025-01-01' }),
-      ),
-      permissions: faker.helpers.arrayElements(menuIds),
-      remark: faker.lorem.sentence(),
-    };
-
-    dataList.push(dataItem);
-  }
-
-  return dataList;
-}
-
-const mockData = generateMockDataList(100);
-
 export default eventHandler(async (event) => {
-  const userinfo = verifyAccessToken(event);
+  const userinfo = await verifyAccessToken(event);
   if (!userinfo) {
     return unAuthorizedResponse(event);
   }
@@ -49,36 +13,67 @@ export default eventHandler(async (event) => {
     page = 1,
     pageSize = 20,
     name,
-    id,
-    remark,
+    code,
+    status,
     startTime,
     endTime,
-    status,
   } = getQuery(event);
-  let listData = structuredClone(mockData);
-  if (name) {
-    listData = listData.filter((item) =>
-      item.name.toLowerCase().includes(String(name).toLowerCase()),
-    );
+
+  try {
+    const rolesCollection = await getRolesCollection();
+    
+    // Build filter
+    const filter: any = {};
+    
+    if (name) {
+      filter.name = { $regex: name, $options: 'i' };
+    }
+    if (code) {
+      filter.code = { $regex: code, $options: 'i' };
+    }
+    if (['0', '1'].includes(status as string)) {
+      filter.status = Number(status);
+    }
+    if (startTime || endTime) {
+      filter.createTime = {};
+      if (startTime) {
+        filter.createTime.$gte = startTime;
+      }
+      if (endTime) {
+        filter.createTime.$lte = endTime;
+      }
+    }
+
+    // Get total count
+    const total = await rolesCollection.countDocuments(filter);
+    
+    // Pagination
+    const pageNum = Number(page);
+    const pageSizeNum = Number(pageSize);
+    const skip = (pageNum - 1) * pageSizeNum;
+    
+    // Get data
+    const roles = await rolesCollection
+      .find(filter)
+      .sort({ createTime: -1 })
+      .skip(skip)
+      .limit(pageSizeNum)
+      .toArray();
+
+    // Convert _id to id
+    const listData = roles.map(({ _id, ...role }) => ({
+      ...role,
+      id: role.id || _id?.toString(),
+    }));
+
+    return usePageResponseSuccess(page as string, pageSize as string, listData);
+  } catch (error) {
+    console.error('Error fetching roles:', error);
+    return {
+      code: -1,
+      data: null,
+      error: error instanceof Error ? error.message : 'Unknown error',
+      message: 'Failed to fetch roles',
+    };
   }
-  if (id) {
-    listData = listData.filter((item) =>
-      item.id.toLowerCase().includes(String(id).toLowerCase()),
-    );
-  }
-  if (remark) {
-    listData = listData.filter((item) =>
-      item.remark?.toLowerCase()?.includes(String(remark).toLowerCase()),
-    );
-  }
-  if (startTime) {
-    listData = listData.filter((item) => item.createTime >= startTime);
-  }
-  if (endTime) {
-    listData = listData.filter((item) => item.createTime <= endTime);
-  }
-  if (['0', '1'].includes(status as string)) {
-    listData = listData.filter((item) => item.status === Number(status));
-  }
-  return usePageResponseSuccess(page as string, pageSize as string, listData);
 });

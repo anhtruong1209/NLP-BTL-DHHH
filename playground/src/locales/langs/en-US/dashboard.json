@@ -1,0 +1,33 @@
+{
+  "analytics": {
+    "title": "Analytics",
+    "description": "Chat statistics and usage analytics",
+    "filters": "Filters",
+    "last7Days": "Last 7 days",
+    "last30Days": "Last 30 days",
+    "last90Days": "Last 90 days",
+    "lastYear": "Last year",
+    "totalSessions": "Total Sessions",
+    "totalMessages": "Total Messages",
+    "totalUsers": "Total Users",
+    "modelsUsed": "Models Used",
+    "dailyChatSessions": "Daily Chat Sessions",
+    "messagesDailyStats": "Messages by Day",
+    "hourlyStats": "Messages by Hour (24h)",
+    "avgResponseTime": "Avg Response Time",
+    "responseTimeTrend": "Response Time Trend",
+    "modelUsageDistribution": "Model Usage Distribution",
+    "topUsersBySessions": "Top Users by Sessions",
+    "topConversations": "Top Conversations",
+    "modelUsageDetails": "Model Usage Details",
+    "model": "Model",
+    "usageCount": "Usage Count",
+    "noModelUsageData": "No model usage data available",
+    "messagesTrend": "Messages Trend",
+    "failedToLoad": "Failed to load analytics",
+    "conversation": "Conversation",
+    "messageCount": "Message Count",
+    "lastMessage": "Last Message"
+  }
+}
+

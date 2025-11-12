@@ -13,7 +13,11 @@ export default defineEventHandler(async (event) => {
 	if (userId) {
 		const sessionsCol = await getChatSessionsCollection();
 		const session = await sessionsCol.findOne({ sessionId });
-		if (!session || session.userId !== userId) {
+		// Normalize both userIds to string for comparison
+		const sessionUserId = session?.userId ? String(session.userId).trim() : '';
+		const normalizedUserId = userId.trim();
+		console.log('[RAG][messages] checking access:', { sessionId, sessionUserId, normalizedUserId, match: sessionUserId === normalizedUserId });
+		if (!session || sessionUserId !== normalizedUserId) {
 			event.node.res.statusCode = 403;
 			return { error: 'Forbidden: session does not belong to user' };
 		}

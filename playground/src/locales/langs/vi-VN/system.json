@@ -75,6 +75,15 @@
     "createTime": "Thời gian tạo",
     "remark": "Ghi chú",
     "operation": "Thao tác"
+  },
+  "model": {
+    "title": "Quản lý Model",
+    "list": "Danh sách Model",
+    "name": "Model",
+    "modelName": "Tên Model",
+    "modelKey": "Mã Model",
+    "status": "Trạng thái",
+    "createTime": "Thời gian tạo"
   }
 }
 

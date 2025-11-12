@@ -8,6 +8,7 @@ const routes: RouteRecordRaw[] = [
       icon: 'ion:settings-outline',
       order: 9997,
       title: $t('system.title'),
+      roles: ['admin', 'super'], // Only admin can access
     },
     name: 'System',
     path: '/system',
@@ -21,15 +22,24 @@ const routes: RouteRecordRaw[] = [
         },
         component: () => import('#/views/system/user/list.vue'),
       },
-      // {
-      //   path: '/system/role',
-      //   name: 'SystemRole',
-      //   meta: {
-      //     icon: 'mdi:account-group',
-      //     title: $t('system.role.title'),
-      //   },
-      //   component: () => import('#/views/system/role/list.vue'),
-      // },
+      {
+        path: '/system/model',
+        name: 'SystemModel',
+        meta: {
+          icon: 'mdi:robot',
+          title: $t('system.model.title'),
+        },
+        component: () => import('#/views/system/model/list.vue'),
+      },
+      {
+        path: '/system/role',
+        name: 'SystemRole',
+        meta: {
+          icon: 'mdi:account-group',
+          title: $t('system.role.title'),
+        },
+        component: () => import('#/views/system/role/list.vue'),
+      },
       // {
       //   path: '/system/menu',
       //   name: 'SystemMenu',

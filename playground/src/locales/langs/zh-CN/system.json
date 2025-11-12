@@ -77,5 +77,13 @@
     "createTime": "创建时间",
     "remark": "备注",
     "operation": "操作"
+  },
+  "model": {
+    "title": "模型管理",
+    "list": "模型列表",
+    "name": "模型",
+    "modelName": "模型名称",
+    "status": "状态",
+    "createTime": "创建时间"
   }
 }

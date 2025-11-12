@@ -1,6 +1,7 @@
 import { eventHandler, readBody } from 'h3';
 import { verifyAccessToken } from '~/utils/jwt-utils';
 import { getUsersCollection } from '~/utils/mongodb';
+import { hashPassword, isPasswordHashed } from '~/utils/password-utils';
 import {
   unAuthorizedResponse,
   useResponseError,
@@ -37,8 +38,19 @@ export default eventHandler(async (event) => {
       }
     }
 
+    // Hash password nếu có
+    let hashedPassword: string | undefined;
+    if (body.password) {
+      // Nếu password chưa được hash, hash nó
+      if (!isPasswordHashed(body.password)) {
+        hashedPassword = await hashPassword(body.password);
+      } else {
+        hashedPassword = body.password; // Đã hash rồi
+      }
+    }
+
     // Tạo user mới
-    const newUser = {
+    const newUser: any = {
       id: `user-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       username: body.username,
       realName: body.realName || '',
@@ -49,6 +61,11 @@ export default eventHandler(async (event) => {
       createTime: new Date().toISOString(),
       remark: body.remark || '',
     };
+    
+    // Chỉ thêm password nếu có
+    if (hashedPassword) {
+      newUser.password = hashedPassword;
+    }
 
     const result = await usersCollection.insertOne(newUser);
 
@@ -58,7 +75,7 @@ export default eventHandler(async (event) => {
 
     // Lấy user vừa tạo
     const createdUser = await usersCollection.findOne({ _id: result.insertedId });
-    const { _id, ...userData } = createdUser!;
+    const { _id, password: _pwd, ...userData } = createdUser!;
 
     return useResponseSuccess({
       ...userData,

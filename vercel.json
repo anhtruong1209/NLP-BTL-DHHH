@@ -3,7 +3,13 @@
   "installCommand": "pnpm install -w --no-frozen-lockfile",
   "buildCommand": "pnpm vercel:build",
   "outputDirectory": ".vercel/output",
-  "ignoreCommand": ""
+  "ignoreCommand": "",
+  "regions": ["iad1"],
+  "functions": {
+    "apps/backend-mock/**": {
+      "maxDuration": 60
+    }
+  }
 }
 
 

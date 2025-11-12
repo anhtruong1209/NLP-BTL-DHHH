@@ -1,0 +1,33 @@
+{
+  "analytics": {
+    "title": "Phân tích",
+    "description": "Thống kê chat và phân tích sử dụng",
+    "filters": "Bộ lọc",
+    "last7Days": "7 ngày qua",
+    "last30Days": "30 ngày qua",
+    "last90Days": "90 ngày qua",
+    "lastYear": "Năm qua",
+    "totalSessions": "Tổng số phiên",
+    "totalMessages": "Tổng số tin nhắn",
+    "totalUsers": "Tổng số người dùng",
+    "modelsUsed": "Số model đã dùng",
+    "dailyChatSessions": "Phiên chat theo ngày",
+    "messagesDailyStats": "Tin nhắn theo ngày",
+    "hourlyStats": "Tin nhắn theo giờ (24h)",
+    "avgResponseTime": "Thời gian phản hồi trung bình",
+    "responseTimeTrend": "Xu hướng thời gian phản hồi",
+    "modelUsageDistribution": "Phân bố sử dụng model",
+    "topUsersBySessions": "Người dùng hàng đầu theo phiên",
+    "topConversations": "Cuộc hội thoại hàng đầu",
+    "modelUsageDetails": "Chi tiết sử dụng model",
+    "model": "Model",
+    "usageCount": "Số lần sử dụng",
+    "noModelUsageData": "Không có dữ liệu sử dụng model",
+    "messagesTrend": "Xu hướng tin nhắn",
+    "failedToLoad": "Không thể tải dữ liệu phân tích",
+    "conversation": "Cuộc hội thoại",
+    "messageCount": "Số tin nhắn",
+    "lastMessage": "Tin nhắn cuối"
+  }
+}
+

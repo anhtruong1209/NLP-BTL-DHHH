@@ -68,8 +68,8 @@ export default eventHandler(async (event) => {
       .limit(pageSizeNum)
       .toArray();
 
-    // Chuyển đổi _id thành id và loại bỏ _id
-    const listData = users.map(({ _id, ...user }) => ({
+    // Chuyển đổi _id thành id và loại bỏ _id và password
+    const listData = users.map(({ _id, password, ...user }) => ({
       ...user,
       id: user.id || _id?.toString(),
     }));

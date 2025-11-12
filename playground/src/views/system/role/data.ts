@@ -13,6 +13,15 @@ export function useFormSchema(): VbenFormSchema[] {
       rules: 'required',
     },
     {
+      component: 'Input',
+      fieldName: 'code',
+      label: 'Role Code',
+      rules: 'required',
+      componentProps: {
+        placeholder: 'e.g., admin, user, editor',
+      },
+    },
+    {
       component: 'RadioGroup',
       componentProps: {
         buttonStyle: 'solid',
@@ -83,6 +92,11 @@ export function useColumns<T = SystemRoleApi.SystemRole>(
       field: 'name',
       title: $t('system.role.roleName'),
       width: 200,
+    },
+    {
+      field: 'code',
+      title: 'Role Code',
+      width: 150,
     },
     {
       field: 'id',

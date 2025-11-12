@@ -1,90 +1,283 @@
 <script lang="ts" setup>
-import type { AnalysisOverviewItem } from '@vben/common-ui';
-import type { TabOption } from '@vben/types';
-
+import { ref, onMounted, computed } from 'vue';
+import { useUserStore } from '@vben/stores';
+import { message as antdMessage } from 'ant-design-vue';
+import { Page } from '@vben/common-ui';
 import {
-  AnalysisChartCard,
-  AnalysisChartsTabs,
-  AnalysisOverview,
-} from '@vben/common-ui';
-import {
-  SvgBellIcon,
-  SvgCakeIcon,
-  SvgCardIcon,
-  SvgDownloadIcon,
-} from '@vben/icons';
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from '@vben-core/shadcn-ui';
+import { getAnalyticsStats, type AnalyticsStats } from '#/api/analytics';
+import { $t } from '#/locales';
+import AnalyticsDailySessions from './analytics-daily-sessions.vue';
+import AnalyticsModelUsage from './analytics-model-usage.vue';
+import AnalyticsUserStats from './analytics-user-stats.vue';
+import AnalyticsMessagesTrend from './analytics-messages-trend.vue';
+import AnalyticsHourlyStats from './analytics-hourly-stats.vue';
+import AnalyticsResponseTime from './analytics-response-time.vue';
 
-import AnalyticsTrends from './analytics-trends.vue';
-import AnalyticsVisitsData from './analytics-visits-data.vue';
-import AnalyticsVisitsSales from './analytics-visits-sales.vue';
-import AnalyticsVisitsSource from './analytics-visits-source.vue';
-import AnalyticsVisits from './analytics-visits.vue';
+const userStore = useUserStore();
+const isAdmin = computed(() => {
+  const roles = userStore.userInfo?.roles || [];
+  return roles.some(r => r === 'admin' || r === 'super');
+});
 
-const overviewItems: AnalysisOverviewItem[] = [
-  {
-    icon: SvgCardIcon,
-    title: '用户量',
-    totalTitle: '总用户量',
-    totalValue: 120_000,
-    value: 2000,
-  },
-  {
-    icon: SvgCakeIcon,
-    title: '访问量',
-    totalTitle: '总访问量',
-    totalValue: 500_000,
-    value: 20_000,
-  },
-  {
-    icon: SvgDownloadIcon,
-    title: '下载量',
-    totalTitle: '总下载量',
-    totalValue: 120_000,
-    value: 8000,
-  },
-  {
-    icon: SvgBellIcon,
-    title: '使用量',
-    totalTitle: '总使用量',
-    totalValue: 50_000,
-    value: 5000,
-  },
-];
+const loading = ref(false);
+const stats = ref<AnalyticsStats | null>(null);
+const days = ref(30);
 
-const chartTabs: TabOption[] = [
-  {
-    label: '流量趋势',
-    value: 'trends',
-  },
-  {
-    label: '月访问量',
-    value: 'visits',
-  },
-];
+async function loadStats() {
+  loading.value = true;
+  try {
+    const res: any = await getAnalyticsStats({ days: days.value });
+    console.log('[Analytics] Response:', res);
+    
+    // requestClient automatically extracts 'data' field, so res is already the data object
+    // Backend returns: { code: 0, data: { stats: {...} } }
+    // requestClient returns: { stats: {...} }
+    if (res?.stats) {
+      stats.value = res.stats;
+    } else {
+      console.error('[Analytics] Unexpected response format:', res);
+      throw new Error('Invalid response format');
+    }
+    
+    console.log('[Analytics] Stats loaded:', stats.value);
+  } catch (err: any) {
+    console.error('[Analytics] Load error:', err);
+    antdMessage.error(err?.message || $t('dashboard.analytics.failedToLoad'));
+    stats.value = null;
+  } finally {
+    loading.value = false;
+  }
+}
+
+onMounted(() => {
+  loadStats();
+});
 </script>
 
 <template>
-  <div class="p-5">
-    <AnalysisOverview :items="overviewItems" />
-    <AnalysisChartsTabs :tabs="chartTabs" class="mt-5">
-      <template #trends>
-        <AnalyticsTrends />
-      </template>
-      <template #visits>
-        <AnalyticsVisits />
-      </template>
-    </AnalysisChartsTabs>
+  <Page :title="$t('dashboard.analytics.title')" :description="$t('dashboard.analytics.description')">
+    <div class="space-y-4">
+      <!-- Filters -->
+      <Card>
+        <CardHeader>
+          <div class="flex items-center justify-between">
+            <CardTitle>{{ $t('dashboard.analytics.filters') }}</CardTitle>
+            <Select v-model="days" @update:model-value="loadStats">
+              <SelectTrigger class="w-32">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem :value="7">{{ $t('dashboard.analytics.last7Days') }}</SelectItem>
+                <SelectItem :value="30">{{ $t('dashboard.analytics.last30Days') }}</SelectItem>
+                <SelectItem :value="90">{{ $t('dashboard.analytics.last90Days') }}</SelectItem>
+                <SelectItem :value="365">{{ $t('dashboard.analytics.lastYear') }}</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </CardHeader>
+      </Card>
 
-    <div class="mt-5 w-full md:flex">
-      <AnalysisChartCard class="mt-5 md:mr-4 md:mt-0 md:w-1/3" title="访问数量">
-        <AnalyticsVisitsData />
-      </AnalysisChartCard>
-      <AnalysisChartCard class="mt-5 md:mr-4 md:mt-0 md:w-1/3" title="访问来源">
-        <AnalyticsVisitsSource />
-      </AnalysisChartCard>
-      <AnalysisChartCard class="mt-5 md:mt-0 md:w-1/3" title="访问来源">
-        <AnalyticsVisitsSales />
-      </AnalysisChartCard>
+      <!-- Overview Stats -->
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <Card>
+          <CardHeader>
+            <CardTitle class="text-sm font-medium">{{ $t('dashboard.analytics.totalSessions') }}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div class="text-3xl font-bold">{{ stats?.totalSessions || 0 }}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle class="text-sm font-medium">{{ $t('dashboard.analytics.totalMessages') }}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div class="text-3xl font-bold">{{ stats?.totalMessages || 0 }}</div>
+          </CardContent>
+        </Card>
+        <Card v-if="isAdmin">
+          <CardHeader>
+            <CardTitle class="text-sm font-medium">{{ $t('dashboard.analytics.totalUsers') }}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div class="text-3xl font-bold">{{ stats?.totalUsers || 0 }}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle class="text-sm font-medium">{{ $t('dashboard.analytics.modelsUsed') }}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div class="text-3xl font-bold">{{ stats?.modelUsage?.length || 0 }}</div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <!-- Charts Row 1 -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <!-- Daily Sessions Chart -->
+        <Card>
+          <CardHeader>
+            <CardTitle>{{ $t('dashboard.analytics.dailyChatSessions') }}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <AnalyticsDailySessions v-if="stats?.dailyStats" :data="stats.dailyStats" />
+            <div v-else class="flex items-center justify-center h-64 text-muted-foreground">
+              {{ $t('dashboard.analytics.noModelUsageData') }}
+            </div>
+          </CardContent>
+        </Card>
+
+        <!-- Model Usage Chart -->
+        <Card>
+          <CardHeader>
+            <CardTitle>{{ $t('dashboard.analytics.modelUsageDistribution') }}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <AnalyticsModelUsage v-if="stats?.modelUsage" :data="stats.modelUsage" />
+            <div v-else class="flex items-center justify-center h-64 text-muted-foreground">
+              {{ $t('dashboard.analytics.noModelUsageData') }}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <!-- Charts Row 2 -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <!-- Messages Daily Stats Chart -->
+        <Card>
+          <CardHeader>
+            <CardTitle>{{ $t('dashboard.analytics.messagesDailyStats') }}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <AnalyticsMessagesTrend v-if="stats?.messagesDailyStats && stats.messagesDailyStats.length > 0" :data="stats.messagesDailyStats" />
+            <div v-else class="flex items-center justify-center h-64 text-muted-foreground">
+              {{ $t('dashboard.analytics.noModelUsageData') }}
+            </div>
+          </CardContent>
+        </Card>
+
+        <!-- Hourly Stats Chart -->
+        <Card>
+          <CardHeader>
+            <CardTitle>{{ $t('dashboard.analytics.hourlyStats') }}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <AnalyticsHourlyStats v-if="stats?.hourlyStats && stats.hourlyStats.length > 0" :data="stats.hourlyStats" />
+            <div v-else class="flex items-center justify-center h-64 text-muted-foreground">
+              {{ $t('dashboard.analytics.noModelUsageData') }}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <!-- Charts Row 3 -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <!-- Response Time Trend Chart -->
+        <Card>
+          <CardHeader>
+            <CardTitle>{{ $t('dashboard.analytics.responseTimeTrend') }}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <AnalyticsResponseTime v-if="stats?.avgResponseTimeDaily && stats.avgResponseTimeDaily.length > 0" :data="stats.avgResponseTimeDaily" />
+            <div v-else class="flex items-center justify-center h-64 text-muted-foreground">
+              {{ $t('dashboard.analytics.noModelUsageData') }}
+            </div>
+          </CardContent>
+        </Card>
+
+        <!-- User Stats Chart (Admin only) -->
+        <Card v-if="isAdmin">
+          <CardHeader>
+            <CardTitle>{{ $t('dashboard.analytics.topUsersBySessions') }}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <AnalyticsUserStats v-if="stats?.userStats && stats.userStats.length > 0" :data="stats.userStats" />
+            <div v-else class="flex items-center justify-center h-64 text-muted-foreground">
+              {{ $t('dashboard.analytics.noModelUsageData') }}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <!-- Tables Row -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <!-- Model Usage Table -->
+        <Card>
+          <CardHeader>
+            <CardTitle>{{ $t('dashboard.analytics.modelUsageDetails') }}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div v-if="!stats?.modelUsage?.length" class="text-center py-8 text-muted-foreground">
+              {{ $t('dashboard.analytics.noModelUsageData') }}
+            </div>
+            <div v-else class="overflow-x-auto">
+              <table class="w-full">
+                <thead>
+                  <tr class="border-b">
+                    <th class="text-left p-2">{{ $t('dashboard.analytics.model') }}</th>
+                    <th class="text-right p-2">{{ $t('dashboard.analytics.usageCount') }}</th>
+                    <th class="text-right p-2">{{ $t('dashboard.analytics.avgResponseTime') }}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="m in stats.modelUsage" :key="m.modelKey" class="border-b">
+                    <td class="p-2 font-medium">{{ m.modelKey }}</td>
+                    <td class="text-right p-2">{{ m.count }}</td>
+                    <td class="text-right p-2">{{ m.avgResponseTime }}ms</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+
+        <!-- Top Conversations Table -->
+        <Card>
+          <CardHeader>
+            <CardTitle>{{ $t('dashboard.analytics.topConversations') }}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div v-if="!stats?.topConversations?.length" class="text-center py-8 text-muted-foreground">
+              {{ $t('dashboard.analytics.noModelUsageData') }}
+            </div>
+            <div v-else class="overflow-x-auto">
+              <table class="w-full">
+                <thead>
+                  <tr class="border-b">
+                    <th class="text-left p-2">{{ $t('dashboard.analytics.conversation') }}</th>
+                    <th class="text-right p-2">{{ $t('dashboard.analytics.messageCount') }}</th>
+                    <th class="text-right p-2">{{ $t('dashboard.analytics.lastMessage') }}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="c in stats.topConversations" :key="c.sessionId" class="border-b">
+                    <td class="p-2 font-medium">{{ c.title }}</td>
+                    <td class="text-right p-2">{{ c.messageCount }}</td>
+                    <td class="text-right p-2 text-xs text-muted-foreground">
+                      {{ new Date(c.lastMessage).toLocaleDateString() }}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     </div>
-  </div>
+  </Page>
 </template>
+
+<style scoped>
+.space-y-4 > * + * { margin-top: 1rem; }
+</style>

@@ -1,10 +1,11 @@
 import { MongoClient, Db, Collection } from 'mongodb';
+import { hashPassword } from './password-utils';
 
 let client: MongoClient | null = null;
 let db: Db | null = null;
 
-const MONGODB_URI =  'mongodb+srv://admin:admin@warrantly-verhical.hsdx3um.mongodb.net/?appName=warrantly-verhical';
-const DB_NAME = 'chatbot-nlp-vmu';
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://admin:admin@warrantly-verhical.hsdx3um.mongodb.net/?appName=warrantly-verhical';
+const DB_NAME = process.env.MONGODB_DB_NAME || 'chatbot-nlp-vmu';
 
 export interface SystemUser {
   _id?: string;
@@ -19,6 +20,18 @@ export interface SystemUser {
   createTime?: string;
   remark?: string;
   homePath?: string;
+}
+
+export interface SystemRole {
+  _id?: string;
+  id: string;
+  name: string;
+  code: string;
+  status: 0 | 1;
+  permissions?: string[]; // Array of permission codes
+  remark?: string;
+  createTime?: string;
+  updateTime?: string;
 }
 
 export interface RagChunk {
@@ -41,6 +54,7 @@ export interface ChatSession {
   title?: string;
   createdAt: string;
   updatedAt: string;
+  pinned?: boolean;
 }
 
 export interface ChatMessage {
@@ -56,6 +70,41 @@ export interface ChatMessage {
     score: number;
     content: string;
   }>;
+}
+
+export interface AIModel {
+  _id?: string;
+  modelId: string; // Unique identifier
+  name: string; // Display name
+  type: 'gemini' | 'local'; // Model type
+  provider: string; // e.g., 'google', 'local', 'openai'
+  modelKey: string; // e.g., 'gemini-2.5-flash', 'qwen2.5-0.5b-instruct'
+  apiKey?: string; // For API-based models (Gemini, etc.)
+  apiKeyEncrypted?: boolean; // Whether API key is encrypted
+  // For local models
+  localPath?: string; // Path to local model files
+  localType?: 'gguf' | 'transformers' | 'onnx'; // Local model format
+  // Configuration
+  enabled: boolean; // Whether model is enabled
+  defaultMaxTokens?: number;
+  defaultTemperature?: number;
+  defaultTopP?: number;
+  // Metadata
+  description?: string;
+  createdAt: string;
+  updatedAt: string;
+  createdBy?: string;
+}
+
+export interface ModelUsage {
+  _id?: string;
+  modelKey: string; // e.g., 'gemini-2.5-flash'
+  userId?: string;
+  sessionId: string;
+  messageId?: string;
+  timestamp: string;
+  tokensUsed?: number;
+  responseTime?: number; // in milliseconds
 }
 
 /**
@@ -143,6 +192,45 @@ export async function getChatMessagesCollection(): Promise<Collection<ChatMessag
 }
 
 /**
+ * Lấy collection AI models
+ */
+export async function getAIModelsCollection(): Promise<Collection<AIModel>> {
+  try {
+    const database = await connectMongoDB();
+    return database.collection<AIModel>('ai_models');
+  } catch (error) {
+    console.error('❌ Error getting AI models collection:', error);
+    throw error;
+  }
+}
+
+/**
+ * Lấy collection system roles
+ */
+export async function getRolesCollection(): Promise<Collection<SystemRole>> {
+  try {
+    const database = await connectMongoDB();
+    return database.collection<SystemRole>('system_roles');
+  } catch (error) {
+    console.error('❌ Error getting roles collection:', error);
+    throw error;
+  }
+}
+
+/**
+ * Lấy collection model usage statistics
+ */
+export async function getModelUsageCollection(): Promise<Collection<ModelUsage>> {
+  try {
+    const database = await connectMongoDB();
+    return database.collection<ModelUsage>('model_usage');
+  } catch (error) {
+    console.error('❌ Error getting model usage collection:', error);
+    throw error;
+  }
+}
+
+/**
  * Khởi tạo 2 user mặc định
  */
 async function initializeDefaultUsers() {
@@ -160,6 +248,14 @@ async function initializeDefaultUsers() {
       
       if (adminUser && normalUser) {
         console.log('✅ Default users already exist');
+        // Ensure admin user has correct roles
+        if (!adminUser.roles || !adminUser.roles.includes('admin')) {
+          console.log('⚠️ Admin user missing admin role, updating...');
+          await usersCollection.updateOne(
+            { username: 'admin' },
+            { $set: { roles: ['super', 'admin'] } }
+          );
+        }
         return; // Đã có user, không cần tạo lại
       }
       
@@ -168,11 +264,15 @@ async function initializeDefaultUsers() {
       await usersCollection.deleteMany({ username: { $in: ['admin', 'user'] } });
     }
 
+    // Hash passwords before creating users
+    const adminPasswordHash = await hashPassword('admin@123');
+    const userPasswordHash = await hashPassword('user@123');
+    
     const defaultUsers: Omit<SystemUser, '_id'>[] = [
       {
         id: 'admin-001',
         username: 'admin',
-        password: 'admin@123',
+        password: adminPasswordHash,
         realName: 'Administrator',
         email: 'admin@chatbot-nlp-vmu.com',
         phone: '0123456789',
@@ -185,7 +285,7 @@ async function initializeDefaultUsers() {
       {
         id: 'user-001',
         username: 'user',
-        password: 'user@123',
+        password: userPasswordHash,
         realName: 'User',
         email: 'user@chatbot-nlp-vmu.com',
         phone: '0987654321',

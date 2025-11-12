@@ -1,6 +1,7 @@
 import { eventHandler, getRouterParam, readBody } from 'h3';
 import { verifyAccessToken } from '~/utils/jwt-utils';
 import { getUsersCollection } from '~/utils/mongodb';
+import { hashPassword, isPasswordHashed } from '~/utils/password-utils';
 import {
   unAuthorizedResponse,
   useResponseError,
@@ -51,7 +52,17 @@ export default eventHandler(async (event) => {
     }
 
     // Cập nhật user (loại bỏ id khỏi body để không cập nhật)
-    const { id: _, ...updateData } = body;
+    const { id: _, password, ...updateData } = body;
+    
+    // Hash password nếu có thay đổi
+    if (password) {
+      // Nếu password chưa được hash, hash nó
+      if (!isPasswordHashed(password)) {
+        updateData.password = await hashPassword(password);
+      } else {
+        updateData.password = password; // Đã hash rồi
+      }
+    }
     
     const result = await usersCollection.updateOne(
       { id },
@@ -64,7 +75,7 @@ export default eventHandler(async (event) => {
 
     // Lấy user đã cập nhật
     const updatedUser = await usersCollection.findOne({ id });
-    const { _id, ...userData } = updatedUser!;
+    const { _id, password: _pwd, ...userData } = updatedUser!;
 
     return useResponseSuccess({
       ...userData,

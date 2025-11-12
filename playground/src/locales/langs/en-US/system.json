@@ -75,5 +75,13 @@
     "createTime": "Create Time",
     "remark": "Remark",
     "operation": "Operation"
+  },
+  "model": {
+    "title": "Model Management",
+    "list": "Model List",
+    "name": "Model",
+    "modelName": "Model Name",
+    "status": "Status",
+    "createTime": "Create Time"
   }
 }

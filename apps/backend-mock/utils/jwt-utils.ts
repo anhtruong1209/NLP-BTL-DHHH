@@ -6,10 +6,11 @@ import { getHeader } from 'h3';
 import jwt from 'jsonwebtoken';
 
 import { MOCK_USERS } from './mock-data';
+import { getUsersCollection } from './mongodb';
 
-// TODO: Replace with your own secret key
-const ACCESS_TOKEN_SECRET = 'access_token_secret';
-const REFRESH_TOKEN_SECRET = 'refresh_token_secret';
+// JWT secrets from environment variables, with fallback for development
+const ACCESS_TOKEN_SECRET = process.env.JWT_ACCESS_TOKEN_SECRET || 'access_token_secret_change_in_production';
+const REFRESH_TOKEN_SECRET = process.env.JWT_REFRESH_TOKEN_SECRET || 'refresh_token_secret_change_in_production';
 
 export interface UserPayload extends UserInfo {
   iat: number;
@@ -26,9 +27,9 @@ export function generateRefreshToken(user: UserInfo) {
   });
 }
 
-export function verifyAccessToken(
+export async function verifyAccessToken(
   event: H3Event<EventHandlerRequest>,
-): null | Omit<UserInfo, 'password'> {
+): Promise<null | Omit<UserInfo, 'password'>> {
   const authHeader = getHeader(event, 'Authorization');
   if (!authHeader?.startsWith('Bearer')) {
     return null;
@@ -46,6 +47,34 @@ export function verifyAccessToken(
     ) as unknown as UserPayload;
 
     const username = decoded.username;
+    console.log('[JWT] Verifying token for user:', username);
+    
+    // Try to get user from MongoDB first
+    try {
+      const usersCollection = await getUsersCollection();
+      const dbUser = await usersCollection.findOne({ username, status: 1 });
+      if (dbUser) {
+        console.log('[JWT] Found user in MongoDB:', {
+          username: dbUser.username,
+          roles: dbUser.roles,
+          id: dbUser.id,
+        });
+        const { password: _pwd, ...userinfo } = dbUser;
+        return {
+          id: Number(dbUser.id.replace(/\D/g, '')) || 0,
+          username: dbUser.username,
+          realName: dbUser.realName,
+          roles: dbUser.roles,
+          homePath: dbUser.homePath,
+        } as Omit<UserInfo, 'password'>;
+      } else {
+        console.warn('[JWT] User not found in MongoDB:', username);
+      }
+    } catch (dbError) {
+      console.warn('[JWT] MongoDB lookup failed, falling back to MOCK_USERS:', dbError);
+    }
+    
+    // Fallback to MOCK_USERS
     const user = MOCK_USERS.find((item) => item.username === username);
     if (!user) {
       return null;
