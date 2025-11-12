@@ -22,7 +22,19 @@ async function run() {
     '@vben-core/menu-ui',
     '@vben-core/shadcn-ui',
     '@vben-core/composables',
-    '@vben-core/icons'
+    '@vben-core/icons',
+    '@vben-core/layout-ui',
+    '@vben-core/popup-ui',
+    '@vben-core/shadcn-ui',
+    '@vben-core/shared',
+    '@vben-core/tabs-ui',
+    '@vben/constants',
+    '@vben/hooks',
+    '@vben/locales',
+    '@vben/preferences',
+    '@vben/stores',
+    '@vben/types',
+    '@vben/utils',
   ];
 
   for (const ws of workspacesToBuildFirst) {
