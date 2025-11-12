@@ -2,7 +2,7 @@
 // then merge frontend static assets into .vercel/output/static so one Vercel
 // project can serve both FE and API together.
 import { spawn } from 'node:child_process';
-import { cp, mkdir } from 'node:fs/promises';
+import { cp, mkdir, rm } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -47,7 +47,13 @@ async function run() {
       throw error;
     });
   }
-  await runCmd('pnpm', ['-F', '@vben/backend-mock', 'build']);
+  await rm(vercelOut, { recursive: true, force: true });
+  await runCmd('pnpm', ['-F', '@vben/backend-mock', 'build'], {
+    env: {
+      ...process.env,
+      NITRO_OUTPUT_DIR: vercelOut,
+    },
+  });
   await runCmd('pnpm', ['-F', '@vben/playground', 'build']);
 
   // Prepare static folder inside .vercel/output
@@ -62,9 +68,13 @@ async function run() {
   console.log('[vercel-build] Copied playground/dist -> .vercel/output/static');
 }
 
-function runCmd(cmd, args) {
+function runCmd(cmd, args, options = {}) {
   return new Promise((resolve, reject) => {
-    const child = spawn(cmd, args, { stdio: 'inherit', shell: process.platform === 'win32' });
+    const child = spawn(cmd, args, {
+      stdio: 'inherit',
+      shell: process.platform === 'win32',
+      ...options,
+    });
     child.on('close', (code) => (code === 0 ? resolve() : reject(new Error(`${cmd} ${args.join(' ')} failed with ${code}`))));
   });
 }
