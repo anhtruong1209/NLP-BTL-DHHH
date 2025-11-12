@@ -117,14 +117,14 @@ export default defineEventHandler(async (event) => {
 		// If not found by modelId, try to find model by modelKey (even if it looks like API key - might be legacy data)
 		// enabled can be 1 (number) or true (boolean) in DB
 		if (!modelConfig) {
-			modelConfig = await modelsCol.findOne({
-				modelKey,
+		modelConfig = await modelsCol.findOne({ 
+			modelKey, 
 				$or: [{ enabled: true }, { enabled: 1 as any }],
-			} as any);
+		} as any);
 		}
 		
 		// If not found by modelKey, check if it's an API key and try to find by apiKey field
-		if (!modelConfig) {			
+		if (!modelConfig) {
 			if (looksLikeApiKeyStr(modelKey)) {
 				console.warn(`[RAG][chat] ModelKey looks like API key, trying to find model by apiKey field...`);
 				// Try to find model where apiKey matches (legacy data where modelKey was set to API key)

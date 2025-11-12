@@ -81,8 +81,8 @@ export default eventHandler(async (event) => {
       const roleCode = user.role?.toString() || user.role;
       const roleInfo = roleMap.get(roleCode);
       return {
-        ...user,
-        id: user.id || _id?.toString(),
+      ...user,
+      id: user.id || _id?.toString(),
         roleName: roleInfo?.name || '',
         roleCode: roleCode,
       };
