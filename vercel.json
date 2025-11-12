@@ -4,12 +4,5 @@
   "buildCommand": "pnpm vercel:build",
   "outputDirectory": ".vercel/output",
   "ignoreCommand": "",
-  "regions": ["iad1"],
-  "functions": {
-    "apps/backend-mock/**": {
-      "maxDuration": 60
-    }
-  }
+  "regions": ["iad1"]
 }
-
-
