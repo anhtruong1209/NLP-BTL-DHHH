@@ -15,6 +15,7 @@ const feDist = resolve(root, 'playground/dist');
 
 async function run() {
   // Install already handled by Vercel; ensure builds run in monorepo
+  await runCmd('pnpm', ['-F', '@vben-core/design', 'build']);
   await runCmd('pnpm', ['-F', '@vben/backend-mock', 'build']);
   await runCmd('pnpm', ['-F', '@vben/playground', 'build']);
 
