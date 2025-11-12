@@ -15,6 +15,8 @@ import {
 } from '@vben-core/shadcn-ui';
 import { ragChat, ragMessages, ragSessions, ragPinSession, ragUpdateSessionTitle, ragDeleteSession } from '#/api/rag';
 import { getAvailableModels, type AIModel } from '#/api/models';
+import { $t } from '#/locales';
+import { preferences } from '@vben/preferences';
 
 const userStore = useUserStore();
 const currentUserId = computed(() => userStore.userInfo?.id || userStore.userInfo?.username || 'guest');
@@ -33,14 +35,19 @@ const loadingModels = ref<boolean>(false);
 async function loadModels() {
   loadingModels.value = true;
   try {
-    // Use public endpoint that doesn't require admin access
     const res: any = await getAvailableModels();
-    // requestClient automatically extracts 'data' field
-    const models: AIModel[] = res?.models || [];
+    let models: AIModel[] = [];
+    if (res?.models && Array.isArray(res.models)) {
+      models = res.models;
+    } else if (res?.data?.models && Array.isArray(res.data.models)) {
+      models = res.data.models;
+    } else if (Array.isArray(res)) {
+      models = res;
+    } else {
+    }
     
-    // Map to select format (models are already filtered to enabled only)
-    const enabledModels = models.map(m => ({
-      value: m.modelKey,
+    const enabledModels = models.map((m: any) => ({
+      value: m.payloadModel || m.modelKey || m.modelId,
       label: m.name,
     }));
     
@@ -51,14 +58,20 @@ async function loadModels() {
       const firstModel = enabledModels[0];
       if (firstModel) {
         selectedModel.value = firstModel.value;
-        console.log('[UI] Set default model:', firstModel.value);
       }
     }
     
-    console.log('[UI] Loaded models:', enabledModels);
-    console.log('[UI] Selected model:', selectedModel.value);
+    
+    if (enabledModels.length === 0) {
+      antdMessage.warning($t('dashboard.workspace.noEnabledModels'));
+    }
   } catch (err: any) {
     console.error('[UI] Load models error:', err);
+    console.error('[UI] Error details:', {
+      message: err?.message,
+      response: err?.response?.data,
+      status: err?.response?.status,
+    });
     // Fallback to default models if API fails
     availableModels.value = [
       { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash' },
@@ -66,7 +79,7 @@ async function loadModels() {
     if (!selectedModel.value) {
       selectedModel.value = 'gemini-2.5-flash';
     }
-    antdMessage.warning('Failed to load models, using default');
+    antdMessage.warning($t('dashboard.workspace.failedToLoadModels'));
   } finally {
     loadingModels.value = false;
   }
@@ -95,14 +108,63 @@ const sortedSessions = computed(() => {
 
 // Current session title
 const currentSessionTitle = computed(() => {
-  if (!sessionId.value) return 'New Chat';
+  if (!sessionId.value) return $t('dashboard.workspace.newChat');
   const s = sessions.value.find(s => s.sessionId === sessionId.value);
-  return s?.title || 'Chat';
+  return s?.title || $t('dashboard.workspace.chat');
 });
 
 // Current model label
 const currentModelLabel = computed(() => {
-  return availableModels.value.find(m => m.value === selectedModel.value)?.label || 'Select Model';
+  return availableModels.value.find(m => m.value === selectedModel.value)?.label || $t('dashboard.workspace.selectModel');
+});
+
+const DEFAULT_SUGGESTIONS_VI = [
+  'Giải thích về machine learning là gì?',
+  'Làm thế nào để tối ưu hóa hiệu suất của một ứng dụng web?',
+  'Viết một đoạn code Python để đọc file CSV',
+  'Viết mail xin nghỉ việc cho tôi 1 cách trịnh trọng?',
+  'Các best practices cho việc quản lý database là gì?',
+];
+
+const DEFAULT_SUGGESTIONS_EN = [
+  'What is machine learning?',
+  'How to optimize web application performance?',
+  'Write Python code to read a CSV file.',
+  'How did artificial intelligence develop?',
+  'What are best practices for database management?',
+];
+
+// Suggested questions
+const suggestedQuestions = computed(() => {
+  const raw: any = $t('dashboard.workspace.suggestions') as any;
+  const fallbackSuggestions =
+    preferences.app.locale === 'en-US'
+      ? DEFAULT_SUGGESTIONS_EN
+      : DEFAULT_SUGGESTIONS_VI;
+
+  if (Array.isArray(raw)) {
+    const arr = raw as string[];
+    return arr.slice(0, 5);
+  }
+  if (typeof raw === 'string') {
+    // Try JSON parse first
+    try {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) return (parsed as string[]).slice(0, 5);
+    } catch {}
+    // Try pipe-separated list
+    if (raw.includes('|')) {
+      return raw
+        .split('|')
+        .map((s) => s.trim())
+        .filter(Boolean)
+        .slice(0, 5);
+    }
+    // Otherwise, return locale-specific defaults
+    return fallbackSuggestions;
+  }
+  // Default fallback list (5 items)
+  return fallbackSuggestions;
 });
 
 async function refreshSessions() {
@@ -133,7 +195,7 @@ async function refreshSessions() {
     }
   } catch (err: any) {
     console.error('[UI] Refresh sessions error:', err);
-    antdMessage.error(err?.response?.data?.error || err?.message || 'Load sessions failed');
+    antdMessage.error(err?.response?.data?.error || err?.message || $t('dashboard.workspace.loadSessionsFailed'));
     sessions.value = [];
   }
 }
@@ -160,7 +222,7 @@ async function loadMessages() {
     console.error('[UI] Load messages error:', err);
     // Don't show error if it's just a permission issue when loading
     if (err?.response?.status !== 403) {
-      antdMessage.error(err?.message || 'Load messages failed');
+      antdMessage.error(err?.message || $t('dashboard.workspace.loadMessagesFailed'));
     }
   } finally {
     loading.value = false;
@@ -186,6 +248,12 @@ function createNewSession() {
   input.value = '';
 }
 
+async function selectSuggestedQuestion(question: string) {
+  input.value = question;
+  await nextTick();
+  send();
+}
+
 async function send() {
   const content = input.value.trim();
   if (!content || sending.value) return;
@@ -206,17 +274,21 @@ async function send() {
   
   // Validate selectedModel before sending
   if (!selectedModel.value || selectedModel.value.trim() === '') {
-    antdMessage.error('Please select a model first');
+    antdMessage.error($t('dashboard.workspace.pleaseSelectModel'));
     return;
   }
   
+  // If the selectedModel exists in dropdown options, trust it even if it looks like an API key.
+  const validOptionValues = new Set(availableModels.value.map((m) => m.value));
+  const isFromDropdown = validOptionValues.has(selectedModel.value);
+  
   // Additional validation: ensure it's not an API key
-  if (selectedModel.value.length > 30 && (
-    selectedModel.value.startsWith('AIza') || 
+  if (!isFromDropdown && selectedModel.value.length > 30 && (
+    selectedModel.value.startsWith('AIza') ||
     selectedModel.value.startsWith('sk-') ||
     /^[A-Za-z0-9_-]{40,}$/.test(selectedModel.value)
   )) {
-    antdMessage.error('Invalid model selection. Please select a model from the dropdown.');
+    antdMessage.error($t('dashboard.workspace.invalidModelSelection'));
     console.error('[UI] Invalid modelKey detected:', selectedModel.value);
     return;
   }
@@ -247,7 +319,7 @@ async function send() {
     // Check if response is ok
     if (!responseData.ok) {
       console.error('[UI] Response not ok:', responseData);
-      antdMessage.error('Server returned an error');
+      antdMessage.error($t('dashboard.workspace.sendFailed'));
       return;
     }
     
@@ -285,7 +357,7 @@ async function send() {
       scrollToBottom();
     } else {
       console.warn('[UI] No answer field in response. Full response:', JSON.stringify(responseData, null, 2));
-      antdMessage.warning('Received response without answer field');
+      antdMessage.warning($t('dashboard.workspace.sendFailed'));
     }
     
     // Don't reload messages - we already have them in the UI
@@ -297,7 +369,7 @@ async function send() {
       // Compare by content and timestamp to find the right message
       return !(m.role === 'user' && m.content === userMsg && Math.abs(new Date(m.createdAt).getTime() - new Date(userMessage.createdAt).getTime()) < 1000);
     });
-    antdMessage.error(err?.message || 'Send failed');
+    antdMessage.error(err?.message || $t('dashboard.workspace.sendFailed'));
   } finally {
     sending.value = false;
   }
@@ -310,7 +382,7 @@ async function togglePin(session: any) {
     session.pinned = newPinned;
     await refreshSessions();
   } catch (err: any) {
-    antdMessage.error(err?.message || 'Failed to pin/unpin session');
+    antdMessage.error(err?.message || $t('dashboard.workspace.pinFailed'));
   }
 }
 
@@ -327,7 +399,7 @@ function cancelEditTitle() {
 async function saveEditTitle(session: any) {
   const newTitle = editingTitle.value.trim();
   if (!newTitle) {
-    antdMessage.warning('Title cannot be empty');
+    antdMessage.warning($t('dashboard.workspace.titleCannotBeEmpty'));
     return;
   }
   if (newTitle === session.title) {
@@ -342,20 +414,20 @@ async function saveEditTitle(session: any) {
       session.updatedAt = new Date().toISOString();
       await refreshSessions();
       cancelEditTitle();
-      antdMessage.success('Title updated');
+      antdMessage.success($t('dashboard.workspace.titleUpdated'));
     }
   } catch (err: any) {
-    antdMessage.error(err?.message || 'Failed to update title');
+    antdMessage.error(err?.message || $t('dashboard.workspace.updateTitleFailed'));
   }
 }
 
 async function deleteSession(session: any) {
   Modal.confirm({
-    title: 'Delete Chat Session',
-    content: `Are you sure you want to delete "${session.title || 'Untitled Chat'}"? This action cannot be undone.`,
-    okText: 'Delete',
+    title: $t('dashboard.workspace.deleteSession'),
+    content: $t('dashboard.workspace.deleteConfirm', { title: session.title || $t('dashboard.workspace.untitledChat') }),
+    okText: $t('dashboard.workspace.delete'),
     okType: 'danger',
-    cancelText: 'Cancel',
+    cancelText: $t('dashboard.workspace.cancel'),
     async onOk() {
       try {
         console.log('[UI] Deleting session:', session.sessionId);
@@ -369,13 +441,13 @@ async function deleteSession(session: any) {
             messages.value = [];
           }
           await refreshSessions();
-          antdMessage.success('Session deleted successfully');
+          antdMessage.success($t('dashboard.workspace.deleteSuccess'));
         } else {
-          antdMessage.error(responseData.error || 'Failed to delete session');
+          antdMessage.error(responseData.error || $t('dashboard.workspace.deleteFailed'));
         }
       } catch (err: any) {
         console.error('[UI] Delete session error:', err);
-        antdMessage.error(err?.response?.data?.error || err?.message || 'Failed to delete session');
+        antdMessage.error(err?.response?.data?.error || err?.message || $t('dashboard.workspace.deleteFailed'));
       }
     },
   });
@@ -420,7 +492,7 @@ onMounted(async () => {
       <div class="p-3 border-b">
         <Button @click="createNewSession" class="w-full" :variant="!sessionId ? 'default' : 'outline'">
           <span class="mr-2">+</span>
-          New Chat
+          {{ $t('dashboard.workspace.newChat') }}
         </Button>
       </div>
       
@@ -430,8 +502,8 @@ onMounted(async () => {
           <!-- Empty state -->
           <div v-if="sortedSessions.length === 0" class="text-center p-4 text-muted-foreground">
             <div class="text-4xl mb-2">💬</div>
-            <p class="text-xs">No sessions yet</p>
-            <p class="text-[10px] opacity-70 mt-1">Start chatting to create one</p>
+            <p class="text-xs">{{ $t('dashboard.workspace.noSessions') }}</p>
+            <p class="text-[10px] opacity-70 mt-1">{{ $t('dashboard.workspace.startChatting') }}</p>
           </div>
           <!-- Sessions -->
           <div
@@ -448,7 +520,7 @@ onMounted(async () => {
             <div class="flex items-start justify-between gap-2">
               <div class="flex-1 min-w-0">
                 <div class="flex items-center gap-2 mb-1">
-                  <span class="text-sm">💬</span>
+                  <!-- <span class="text-sm">💬</span> -->
                   <!-- Edit mode -->
                   <div v-if="editingSessionId === s.sessionId" class="flex-1 flex items-center gap-1">
                     <Input
@@ -478,9 +550,9 @@ onMounted(async () => {
                     v-else
                     class="text-sm font-medium truncate flex-1 cursor-pointer"
                     @dblclick.stop="startEditTitle(s)"
-                    :title="'Double-click to edit'"
+                    :title="$t('dashboard.workspace.doubleClickToEdit')"
                   >
-                    {{ s.title || 'Untitled Chat' }}
+                    {{ s.title || $t('dashboard.workspace.untitledChat') }}
                   </div>
                 </div>
                 <div :class="[
@@ -503,7 +575,7 @@ onMounted(async () => {
                     'p-1.5 rounded-md transition-all opacity-0 group-hover:opacity-100',
                     sessionId === s.sessionId ? 'hover:bg-primary-foreground/20' : 'hover:bg-muted'
                   ]"
-                  title="Edit title"
+                  :title="$t('dashboard.workspace.editTitle')"
                 >
                   ✏️
                 </button>
@@ -513,7 +585,7 @@ onMounted(async () => {
                     'p-1.5 rounded-md transition-all opacity-0 group-hover:opacity-100',
                     sessionId === s.sessionId ? 'hover:bg-primary-foreground/20' : 'hover:bg-muted'
                   ]"
-                  :title="s.pinned ? 'Unpin' : 'Pin'"
+                  :title="s.pinned ? $t('dashboard.workspace.unpin') : $t('dashboard.workspace.pin')"
                 >
                   <span :class="s.pinned ? '' : 'opacity-50'">📌</span>
                 </button>
@@ -524,7 +596,7 @@ onMounted(async () => {
                     'p-1.5 rounded-md transition-all opacity-0 group-hover:opacity-100',
                     sessionId === s.sessionId ? 'hover:bg-primary-foreground/20' : 'hover:bg-muted'
                   ]"
-                  title="Delete session"
+                  :title="$t('dashboard.workspace.deleteSession')"
                 >
                   🗑️
                 </button>
@@ -546,7 +618,7 @@ onMounted(async () => {
         <div class="flex items-center gap-2">
           <Select v-model="selectedModel" :disabled="loadingModels || availableModels.length === 0">
             <SelectTrigger class="w-48">
-              <SelectValue :placeholder="loadingModels ? 'Loading models...' : (availableModels.length === 0 ? 'No models available' : 'Select model')" />
+              <SelectValue :placeholder="loadingModels ? $t('dashboard.workspace.loadingModels') : (availableModels.length === 0 ? $t('dashboard.workspace.noModelsAvailable') : $t('dashboard.workspace.selectModel'))" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem 
@@ -564,10 +636,27 @@ onMounted(async () => {
       <!-- Messages Area -->
       <ScrollArea ref="messagesScrollRef" class="flex-1 p-4 messages-area">
         <div v-if="messages.length === 0" class="flex items-center justify-center h-full text-muted-foreground">
-          <div class="text-center">
-            <p class="text-lg mb-2">Start a conversation</p>
-            <p class="text-sm">Send a message to begin chatting with Gemini AI</p>
-            <p class="text-xs mt-2 opacity-50">Messages count: {{ messages.length }}</p>
+          <div class="text-center max-w-2xl w-full">
+            <p class="text-lg mb-2">{{ $t('dashboard.workspace.startConversation') }}</p>
+            <p class="text-sm mb-6">{{ $t('dashboard.workspace.sendMessage') }}</p>
+            
+            <!-- Suggested Questions -->
+            <div v-if="suggestedQuestions.length > 0" class="mt-8">
+              <p class="text-sm font-medium mb-4 text-foreground">{{ $t('dashboard.workspace.suggestedQuestions') }}</p>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <button
+                  v-for="(question, idx) in suggestedQuestions"
+                  :key="idx"
+                  @click="selectSuggestedQuestion(question)"
+                  class="p-4 text-left rounded-lg border border-border bg-background hover:bg-muted hover:border-primary transition-all duration-200 text-sm"
+                >
+                  <span class="text-muted-foreground mr-2">{{ idx + 1 }}.</span>
+                  {{ question }}
+                </button>
+              </div>
+            </div>
+            
+            <p class="text-xs mt-6 opacity-50">{{ $t('dashboard.workspace.messagesCount') }}: {{ messages.length }}</p>
           </div>
         </div>
         <div v-else class="space-y-6 max-w-3xl mx-auto py-4">
@@ -611,7 +700,7 @@ onMounted(async () => {
                 <div class="whitespace-pre-wrap text-sm leading-relaxed">{{ m.content }}</div>
                 <details v-if="m.contextChunks?.length" class="mt-3">
                   <summary class="cursor-pointer text-xs opacity-70 hover:opacity-100 transition-opacity">
-                    📎 Context ({{ m.contextChunks.length }})
+                    📎 {{ $t('dashboard.workspace.context') }} ({{ m.contextChunks.length }})
                   </summary>
                   <div class="mt-2 space-y-2 pt-2 border-t border-border/50">
                     <div
@@ -646,7 +735,7 @@ onMounted(async () => {
                   <div class="w-2 h-2 bg-current rounded-full animate-bounce" style="animation-delay: 150ms"></div>
                   <div class="w-2 h-2 bg-current rounded-full animate-bounce" style="animation-delay: 300ms"></div>
                 </div>
-                <span class="text-sm text-muted-foreground">Thinking...</span>
+                <span class="text-sm text-muted-foreground">{{ $t('dashboard.workspace.thinking') }}</span>
               </div>
             </div>
           </div>
@@ -663,17 +752,17 @@ onMounted(async () => {
               @keydown.enter.shift.exact="input += '\n'"
               rows="2"
               class="flex-1 resize-none"
-              placeholder="Type your message... (Enter to send, Shift+Enter for new line)"
+              :placeholder="$t('dashboard.workspace.typeMessage')"
               :disabled="sending"
             />
             <Button @click="send" :disabled="!input.trim() || sending">
-              Send
+              {{ $t('dashboard.workspace.send') }}
             </Button>
           </div>
           <div class="mt-2 flex items-center gap-4 text-xs text-muted-foreground">
             <Input
               v-model="systemPrompt"
-              placeholder="System prompt (optional)"
+              :placeholder="$t('dashboard.workspace.systemPrompt')"
               class="flex-1 text-xs"
             />
           </div>

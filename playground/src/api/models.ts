@@ -7,6 +7,7 @@ export interface AIModel {
   type: 'gemini' | 'local';
   provider: string;
   modelKey: string;
+  payloadModel?: string;
   apiKey?: string;
   apiKeyEncrypted?: boolean;
   localPath?: string;

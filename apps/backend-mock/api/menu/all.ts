@@ -12,8 +12,8 @@ export default eventHandler(async (event) => {
   // Get menus based on username, but filter by roles if needed
   let menus = MOCK_MENUS.find((item) => item.username === userinfo.username)?.menus ?? [];
   
-  // Filter menus based on roles - remove System menu if not admin
-  const isAdmin = userinfo.roles?.some(r => r === 'admin' || r === 'super');
+  // Filter menus based on role - remove System menu if not admin (role === 0)
+  const isAdmin = (userinfo as any).role === 0;
   if (!isAdmin) {
     menus = menus.filter((menu: any) => {
       // Remove System menu if user is not admin

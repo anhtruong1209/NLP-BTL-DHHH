@@ -49,6 +49,15 @@ export default eventHandler(async (event) => {
       }
     }
 
+    // Convert roles to role if provided (for backward compatibility)
+    let userRole: 0 | 1 = 1; // Default to user
+    if (body.role !== undefined && body.role !== null) {
+      userRole = body.role === 0 ? 0 : 1;
+    } else if (body.roles && Array.isArray(body.roles)) {
+      // Migrate from old format
+      userRole = body.roles.some((r: string) => r === 'admin' || r === 'super') ? 0 : 1;
+    }
+
     // Tạo user mới
     const newUser: any = {
       id: `user-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
@@ -56,7 +65,7 @@ export default eventHandler(async (event) => {
       realName: body.realName || '',
       email: body.email || '',
       phone: body.phone || '',
-      roles: body.roles || ['user'],
+      role: userRole, // Use role (0 or 1) instead of roles (array)
       status: body.status !== undefined ? body.status : 1,
       createTime: new Date().toISOString(),
       remark: body.remark || '',

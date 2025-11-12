@@ -154,7 +154,7 @@ function onCreate() {
 <template>
   <Page auto-content-height>
     <FormDrawer @success="onRefresh" />
-    <Grid table-title="Quản lý Model">
+    <Grid table-title="Quản lý mô hình">
       <template #toolbar-tools>
         <Button type="primary" @click="onCreate">
           <Plus class="size-5" />

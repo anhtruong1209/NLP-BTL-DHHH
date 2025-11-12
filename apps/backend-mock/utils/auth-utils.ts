@@ -1,5 +1,14 @@
 import { H3Event } from 'h3';
 import { verifyAccessToken } from './jwt-utils';
+import type { UserRole } from './mongodb';
+
+/**
+ * User role constants
+ */
+export const USER_ROLE = {
+  ADMIN: 0 as const,
+  USER: 1 as const,
+} as const;
 
 /**
  * Get user info from JWT token in request headers
@@ -9,19 +18,18 @@ export async function getUserFromRequest(event: H3Event) {
 }
 
 /**
- * Check if user has admin role
+ * Check if user has admin role (role === 0)
  */
-export function isAdmin(roles?: string[]): boolean {
-  if (!roles || roles.length === 0) return false;
-  return roles.some(role => role === 'admin' || role === 'super');
+export function isAdmin(role?: UserRole | number | null): boolean {
+  return role === USER_ROLE.ADMIN;
 }
 
 /**
  * Check if user has required role
  */
-export function hasRole(roles: string[], requiredRoles: string[]): boolean {
-  if (!roles || roles.length === 0) return false;
-  return requiredRoles.some(role => roles.includes(role));
+export function hasRole(userRole: UserRole | number | null | undefined, requiredRole: UserRole): boolean {
+  if (userRole === null || userRole === undefined) return false;
+  return userRole === requiredRole;
 }
 
 /**
@@ -32,8 +40,8 @@ export async function requireAdmin(event: H3Event): Promise<void> {
   console.log('[Auth] requireAdmin check:', {
     hasUserinfo: !!userinfo,
     username: userinfo?.username,
-    roles: userinfo?.roles,
-    isAdmin: isAdmin(userinfo?.roles),
+    role: userinfo?.role,
+    isAdmin: isAdmin(userinfo?.role),
   });
   
   if (!userinfo) {
@@ -41,7 +49,7 @@ export async function requireAdmin(event: H3Event): Promise<void> {
     throw new Error('Unauthorized: Please login');
   }
   
-  if (!isAdmin(userinfo.roles)) {
+  if (!isAdmin(userinfo.role)) {
     event.node.res.statusCode = 403;
     throw new Error('Forbidden: Admin access required');
   }

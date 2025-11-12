@@ -10,7 +10,10 @@ export namespace SystemUserApi {
     realName: string;
     email?: string;
     phone?: string;
-    roles: string[];
+    role?: string | number; // Role code
+    roles?: string[]; // Legacy field
+    roleName?: string; // Role name from backend
+    roleCode?: string; // Role code from backend
     status: 0 | 1;
     createTime?: string;
     remark?: string;

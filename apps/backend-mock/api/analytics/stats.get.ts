@@ -15,7 +15,7 @@ export default defineEventHandler(async (event) => {
 		return useResponseError('Unauthorized');
 	}
 
-	const isUserAdmin = isAdmin(userinfo.roles);
+	const isUserAdmin = isAdmin((userinfo as any).role);
 	const query = getQuery(event) as { userId?: string; days?: string };
 	const days = Math.max(1, Math.min(365, Number(query.days ?? '30') || 30));
 	const targetUserId = query.userId?.trim();

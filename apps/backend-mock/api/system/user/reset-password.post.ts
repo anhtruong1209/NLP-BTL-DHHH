@@ -2,6 +2,7 @@ import { defineEventHandler, readBody } from 'h3';
 import { verifyAccessToken } from '~/utils/jwt-utils';
 import { getUsersCollection } from '~/utils/mongodb';
 import { hashPassword } from '~/utils/password-utils';
+import { isAdmin } from '~/utils/auth-utils';
 import {
   unAuthorizedResponse,
   useResponseError,
@@ -18,9 +19,8 @@ export default defineEventHandler(async (event) => {
     return unAuthorizedResponse(event);
   }
 
-  // Check if admin
-  const isAdmin = userinfo.roles?.some(r => r === 'admin' || r === 'super');
-  if (!isAdmin) {
+  // Check if admin (role === 0)
+  if (!isAdmin((userinfo as any).role)) {
     event.node.res.statusCode = 403;
     return useResponseError('Forbidden: Admin access required');
   }

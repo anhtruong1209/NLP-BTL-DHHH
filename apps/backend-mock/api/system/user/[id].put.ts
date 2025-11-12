@@ -52,21 +52,45 @@ export default eventHandler(async (event) => {
     }
 
     // Cập nhật user (loại bỏ id khỏi body để không cập nhật)
-    const { id: _, password, ...updateData } = body;
+    const { id: _, password, roles, ...updateData } = body;
+    
+    // Handle role code - convert to string for consistency
+    if (body.role !== undefined && body.role !== null) {
+      // Role code can be string or number, convert to string
+      (updateData as any).role = String(body.role);
+      // Remove old roles field if exists
+      (updateData as any).$unset = { roles: '' };
+    } else if (roles && Array.isArray(roles)) {
+      // Migrate from old format - use first role code if available
+      (updateData as any).role = roles[0] || '1';
+      (updateData as any).$unset = { roles: '' };
+    }
     
     // Hash password nếu có thay đổi
     if (password) {
       // Nếu password chưa được hash, hash nó
       if (!isPasswordHashed(password)) {
-        updateData.password = await hashPassword(password);
+        (updateData as any).password = await hashPassword(password);
       } else {
-        updateData.password = password; // Đã hash rồi
+        (updateData as any).password = password; // Đã hash rồi
       }
+    }
+    
+    // Handle $unset separately if needed
+    const unsetData: any = {};
+    if ((updateData as any).$unset) {
+      Object.assign(unsetData, (updateData as any).$unset);
+      delete (updateData as any).$unset;
+    }
+    
+    const updateOp: any = { $set: updateData };
+    if (Object.keys(unsetData).length > 0) {
+      updateOp.$unset = unsetData;
     }
     
     const result = await usersCollection.updateOne(
       { id },
-      { $set: updateData },
+      updateOp,
     );
 
     if (result.matchedCount === 0) {
