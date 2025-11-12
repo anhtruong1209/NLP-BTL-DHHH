@@ -10,6 +10,7 @@ import { fileURLToPath } from 'node:url';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = resolve(__dirname, '..');
 const vercelOut = resolve(root, '.vercel/output');
+const backendOut = resolve(root, 'apps/backend-mock/.output');
 const staticDir = resolve(vercelOut, 'static');
 const feDist = resolve(root, 'playground/dist');
 
@@ -48,12 +49,23 @@ async function run() {
     });
   }
   await rm(vercelOut, { recursive: true, force: true });
-  await runCmd('pnpm', ['-F', '@vben/backend-mock', 'build'], {
-    env: {
-      ...process.env,
-      NITRO_OUTPUT_DIR: vercelOut,
-    },
-  });
+  await rm(backendOut, { recursive: true, force: true });
+
+  await runCmd('pnpm', ['-F', '@vben/backend-mock', 'build']);
+
+  const backendOutputDir = existsSync(vercelOut)
+    ? vercelOut
+    : existsSync(backendOut)
+      ? backendOut
+      : null;
+
+  if (!backendOutputDir) {
+    throw new Error('Backend build did not produce .vercel/output or apps/backend-mock/.output');
+  }
+
+  if (backendOutputDir !== vercelOut) {
+    await cp(backendOutputDir, vercelOut, { recursive: true });
+  }
   await runCmd('pnpm', ['-F', '@vben/playground', 'build']);
 
   // Prepare static folder inside .vercel/output
