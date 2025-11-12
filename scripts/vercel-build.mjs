@@ -51,7 +51,11 @@ async function run() {
   await rm(vercelOut, { recursive: true, force: true });
   await rm(backendOut, { recursive: true, force: true });
 
-  await runCmd('pnpm', ['-F', '@vben/backend-mock', 'build']);
+  let backendBuildFailed = false;
+  await runCmd('pnpm', ['-F', '@vben/backend-mock', 'build']).catch((error) => {
+    backendBuildFailed = true;
+    console.warn('[vercel-build] Backend build reported failure:', error?.message || error);
+  });
 
   const backendOutputDir = existsSync(vercelOut)
     ? vercelOut
@@ -63,7 +67,12 @@ async function run() {
     throw new Error('Backend build did not produce .vercel/output or apps/backend-mock/.output');
   }
 
+  if (backendBuildFailed) {
+    console.warn('[vercel-build] Backend build reported failure but output folder exists. Continuing with deployment.');
+  }
+
   if (backendOutputDir !== vercelOut) {
+    await mkdir(vercelOut, { recursive: true });
     await cp(backendOutputDir, vercelOut, { recursive: true });
   }
   await runCmd('pnpm', ['-F', '@vben/playground', 'build']);
