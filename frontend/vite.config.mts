@@ -18,6 +18,8 @@ export default defineConfig(async () => {
       optimizeDeps: {
         exclude: ['jiti'],
       },
+      // HTML plugin is configured by @vben/vite-config
+      // We pass appTitle through application config
       build: {
         rollupOptions: {
           plugins: [
