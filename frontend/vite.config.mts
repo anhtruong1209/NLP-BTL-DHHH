@@ -1,4 +1,47 @@
 import { defineConfig } from '@vben/vite-config';
+import type { Plugin } from 'vite';
+
+// Plugin to replace jiti and node: modules
+function replaceJitiPlugin(): Plugin {
+  return {
+    name: 'replace-jiti-node',
+    enforce: 'pre', // Run before other plugins to intercept early
+    resolveId(id, importer) {
+      // Replace jiti - handle all possible import paths including full paths
+      if (
+        id === 'jiti' ||
+        id.startsWith('jiti/') ||
+        id.includes('/jiti/') ||
+        id.includes('jiti/lib/jiti.mjs') ||
+        id.endsWith('/jiti') ||
+        id.includes('node_modules/jiti') ||
+        (importer && importer.includes('jiti'))
+      ) {
+        return '\0virtual:jiti-stub';
+      }
+      // Replace node: modules
+      if (id.startsWith('node:')) {
+        return `\0virtual:${id.replace(/:/g, '-')}`;
+      }
+      return null;
+    },
+    load(id) {
+      // Return empty module for jiti with all exports
+      if (id === '\0virtual:jiti-stub' || id.includes('jiti')) {
+        return `
+          export default function() { return {}; };
+          export function createJiti() { return {}; };
+          export const jiti = () => ({});
+        `;
+      }
+      // Return empty module for node: modules
+      if (id.includes('virtual:node-')) {
+        return 'export default {};';
+      }
+      return null;
+    },
+  };
+}
 
 export default defineConfig(async () => {
   return {
@@ -15,43 +58,52 @@ export default defineConfig(async () => {
           },
         },
       },
+      plugins: [
+        // Add plugin early to intercept jiti imports
+        replaceJitiPlugin(),
+      ],
       optimizeDeps: {
         exclude: ['jiti'],
       },
-      // HTML plugin is configured by @vben/vite-config
-      // We pass appTitle through application config
       build: {
+        commonjsOptions: {
+          exclude: ['jiti'],
+        },
         rollupOptions: {
           plugins: [
+            // Also add to rollup plugins for build time
             {
-              name: 'replace-jiti',
+              name: 'rollup-replace-jiti',
               resolveId(id) {
-                // Replace jiti with empty module for browser builds
-                if (id === 'jiti' || id.startsWith('jiti/')) {
-                  return '\0jiti-stub';
+                // Handle all jiti import patterns including relative paths
+                if (
+                  id === 'jiti' ||
+                  id.includes('jiti') ||
+                  id.includes('/jiti/') ||
+                  id.endsWith('/jiti') ||
+                  id.includes('jiti/lib/jiti.mjs') ||
+                  id.includes('node_modules/jiti') ||
+                  id.includes('.pnpm/jiti')
+                ) {
+                  return '\0rollup-jiti-stub';
+                }
+                // Handle node: modules
+                if (id.startsWith('node:') || id.includes('node:module')) {
+                  return `\0rollup-${id.replace(/[:/]/g, '-')}`;
                 }
                 return null;
               },
               load(id) {
-                // Return empty module for jiti
-                if (id === '\0jiti-stub') {
-                  return 'export default {};';
+                if (id === '\0rollup-jiti-stub' || id.includes('jiti')) {
+                  return `
+                    const noop = () => ({});
+                    export default noop;
+                    export { noop as createJiti, noop as jiti };
+                    export function createRequire() { return () => ({}); }
+                  `;
                 }
-                return null;
-              },
-            },
-            {
-              name: 'replace-node-modules',
-              resolveId(id) {
-                // Replace node: modules with empty stubs
-                if (id.startsWith('node:')) {
-                  return `\0${id}`;
-                }
-                return null;
-              },
-              load(id) {
-                if (id.startsWith('\0node:')) {
-                  return 'export default {};';
+                if (id.includes('rollup-node-') || id.includes('node-module')) {
+                  return 'export default {}; export function createRequire() { return () => ({}); }';
                 }
                 return null;
               },
@@ -61,8 +113,9 @@ export default defineConfig(async () => {
       },
       resolve: {
         alias: {
-          // Alias jiti to empty module
-          'jiti': 'data:text/javascript,export default {}',
+          // Alias jiti to empty module - multiple patterns
+          'jiti': 'data:text/javascript,export default () => ({});',
+          'jiti/lib/jiti.mjs': 'data:text/javascript,export default () => ({});',
         },
       },
     },
