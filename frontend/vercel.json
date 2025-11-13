@@ -1,7 +1,7 @@
 {
-  "buildCommand": "pnpm install --recursive --no-frozen-lockfile && pnpm build --filter @vben/playground^... && pnpm --filter @vben/playground build",
+  "buildCommand": "cd ../.. && pnpm install --recursive --no-frozen-lockfile && node frontend/build-vercel.mjs",
   "outputDirectory": "dist",
-  "installCommand": "pnpm install --recursive --no-frozen-lockfile",
+  "installCommand": "cd ../.. && pnpm install --recursive --no-frozen-lockfile",
   "framework": "vite",
   "rewrites": [
     {
