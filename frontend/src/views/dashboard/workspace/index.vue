@@ -13,7 +13,7 @@ import {
   SelectContent,
   SelectItem,
 } from '@vben-core/shadcn-ui';
-import { ragChat, ragMessages, ragSessions, ragPinSession, ragUpdateSessionTitle, ragDeleteSession } from '#/api/rag';
+import { ragChat, ragSessions } from '#/api/rag';
 import { getAvailableModels, type AIModel } from '#/api/models';
 import { $t } from '#/locales';
 import { preferences } from '@vben/preferences';
@@ -92,18 +92,12 @@ const input = ref<string>('');
 const loading = ref<boolean>(false);
 const sending = ref<boolean>(false);
 const messagesScrollRef = ref<HTMLElement | null>(null);
-const editingSessionId = ref<string | null>(null);
-const editingTitle = ref<string>('');
 
-// Computed: pinned sessions first, then others
+// Computed: sort sessions by updatedAt desc
 const sortedSessions = computed(() => {
-  const pinned = sessions.value.filter(s => s.pinned).sort((a, b) => 
+  return [...sessions.value].sort((a, b) =>
     new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
   );
-  const unpinned = sessions.value.filter(s => !s.pinned).sort((a, b) => 
-    new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
-  );
-  return [...pinned, ...unpinned];
 });
 
 // Current session title
@@ -200,46 +194,10 @@ async function refreshSessions() {
   }
 }
 
-async function loadMessages() {
-  if (!sessionId.value) {
-    messages.value = [];
-    return;
-  }
-  loading.value = true;
-  try {
-    console.log('[UI] Loading messages for session:', sessionId.value, 'user:', currentUserId.value);
-    const res: any = await ragMessages(sessionId.value, 500, currentUserId.value);
-    // Axios returns { data: {...}, status: 200, ... }
-    const responseData = res.data || res;
-    const loadedMessages = responseData.messages ?? [];
-    console.log('[UI] Loaded messages:', loadedMessages.length);
-    // Use array assignment to ensure reactivity
-    messages.value = [...loadedMessages];
-    console.log('[UI] Messages after load:', messages.value.length);
-    await nextTick();
-    scrollToBottom();
-  } catch (err: any) {
-    console.error('[UI] Load messages error:', err);
-    // Don't show error if it's just a permission issue when loading
-    if (err?.response?.status !== 403) {
-      antdMessage.error(err?.message || $t('dashboard.workspace.loadMessagesFailed'));
-    }
-  } finally {
-    loading.value = false;
-  }
-}
-
-// Auto-load messages when session changes
-watch(sessionId, (newId) => {
-  if (newId) {
-    loadMessages();
-  } else {
-    messages.value = [];
-  }
-});
-
 async function selectSession(sid: string) {
   sessionId.value = sid;
+  // Không tải messages từ server nữa; UI chỉ hiển thị lịch sử trong phiên hiện tại
+  messages.value = [];
 }
 
 function createNewSession() {
@@ -375,84 +333,6 @@ async function send() {
   }
 }
 
-async function togglePin(session: any) {
-  try {
-    const newPinned = !session.pinned;
-    await ragPinSession(session.sessionId, newPinned);
-    session.pinned = newPinned;
-    await refreshSessions();
-  } catch (err: any) {
-    antdMessage.error(err?.message || $t('dashboard.workspace.pinFailed'));
-  }
-}
-
-function startEditTitle(session: any) {
-  editingSessionId.value = session.sessionId;
-  editingTitle.value = session.title || '';
-}
-
-function cancelEditTitle() {
-  editingSessionId.value = null;
-  editingTitle.value = '';
-}
-
-async function saveEditTitle(session: any) {
-  const newTitle = editingTitle.value.trim();
-  if (!newTitle) {
-    antdMessage.warning($t('dashboard.workspace.titleCannotBeEmpty'));
-    return;
-  }
-  if (newTitle === session.title) {
-    cancelEditTitle();
-    return;
-  }
-  try {
-    const res: any = await ragUpdateSessionTitle(session.sessionId, newTitle);
-    const responseData = res.data || res;
-    if (responseData.ok) {
-      session.title = newTitle;
-      session.updatedAt = new Date().toISOString();
-      await refreshSessions();
-      cancelEditTitle();
-      antdMessage.success($t('dashboard.workspace.titleUpdated'));
-    }
-  } catch (err: any) {
-    antdMessage.error(err?.message || $t('dashboard.workspace.updateTitleFailed'));
-  }
-}
-
-async function deleteSession(session: any) {
-  Modal.confirm({
-    title: $t('dashboard.workspace.deleteSession'),
-    content: $t('dashboard.workspace.deleteConfirm', { title: session.title || $t('dashboard.workspace.untitledChat') }),
-    okText: $t('dashboard.workspace.delete'),
-    okType: 'danger',
-    cancelText: $t('dashboard.workspace.cancel'),
-    async onOk() {
-      try {
-        console.log('[UI] Deleting session:', session.sessionId);
-        const res: any = await ragDeleteSession(session.sessionId);
-        console.log('[UI] Delete response:', res);
-        const responseData = res.data || res;
-        if (responseData.ok) {
-          // If deleted session is current, clear it
-          if (sessionId.value === session.sessionId) {
-            sessionId.value = '';
-            messages.value = [];
-          }
-          await refreshSessions();
-          antdMessage.success($t('dashboard.workspace.deleteSuccess'));
-        } else {
-          antdMessage.error(responseData.error || $t('dashboard.workspace.deleteFailed'));
-        }
-      } catch (err: any) {
-        console.error('[UI] Delete session error:', err);
-        antdMessage.error(err?.response?.data?.error || err?.message || $t('dashboard.workspace.deleteFailed'));
-      }
-    },
-  });
-}
-
 function scrollToBottom() {
   nextTick(() => {
     try {
@@ -521,37 +401,7 @@ onMounted(async () => {
               <div class="flex-1 min-w-0">
                 <div class="flex items-center gap-2 mb-1">
                   <!-- <span class="text-sm">💬</span> -->
-                  <!-- Edit mode -->
-                  <div v-if="editingSessionId === s.sessionId" class="flex-1 flex items-center gap-1">
-                    <Input
-                      v-model="editingTitle"
-                      @keydown.enter="saveEditTitle(s)"
-                      @keydown.esc="cancelEditTitle"
-                      class="text-sm h-7 flex-1 text-foreground"
-                      @click.stop
-                    />
-                    <button
-                      @click.stop="saveEditTitle(s)"
-                      class="p-1 hover:bg-primary-foreground/20 rounded text-xs"
-                      title="Save"
-                    >
-                      ✓
-                    </button>
-                    <button
-                      @click.stop="cancelEditTitle"
-                      class="p-1 hover:bg-primary-foreground/20 rounded text-xs"
-                      title="Cancel"
-                    >
-                      ✕
-                    </button>
-                  </div>
-                  <!-- Display mode -->
-                  <div
-                    v-else
-                    class="text-sm font-medium truncate flex-1 cursor-pointer"
-                    @dblclick.stop="startEditTitle(s)"
-                    :title="$t('dashboard.workspace.doubleClickToEdit')"
-                  >
+                  <div class="text-sm font-medium truncate flex-1 cursor-pointer">
                     {{ s.title || $t('dashboard.workspace.untitledChat') }}
                   </div>
                 </div>
@@ -567,40 +417,7 @@ onMounted(async () => {
                   }) }}
                 </div>
               </div>
-              <div class="flex items-center gap-1">
-                <button
-                  v-if="editingSessionId !== s.sessionId"
-                  @click.stop="startEditTitle(s)"
-                  :class="[
-                    'p-1.5 rounded-md transition-all opacity-0 group-hover:opacity-100',
-                    sessionId === s.sessionId ? 'hover:bg-primary-foreground/20' : 'hover:bg-muted'
-                  ]"
-                  :title="$t('dashboard.workspace.editTitle')"
-                >
-                  ✏️
-                </button>
-                <button
-                  @click.stop="togglePin(s)"
-                  :class="[
-                    'p-1.5 rounded-md transition-all opacity-0 group-hover:opacity-100',
-                    sessionId === s.sessionId ? 'hover:bg-primary-foreground/20' : 'hover:bg-muted'
-                  ]"
-                  :title="s.pinned ? $t('dashboard.workspace.unpin') : $t('dashboard.workspace.pin')"
-                >
-                  <span :class="s.pinned ? '' : 'opacity-50'">📌</span>
-                </button>
-                <button
-                  v-if="editingSessionId !== s.sessionId"
-                  @click.stop="deleteSession(s)"
-                  :class="[
-                    'p-1.5 rounded-md transition-all opacity-0 group-hover:opacity-100',
-                    sessionId === s.sessionId ? 'hover:bg-primary-foreground/20' : 'hover:bg-muted'
-                  ]"
-                  :title="$t('dashboard.workspace.deleteSession')"
-                >
-                  🗑️
-                </button>
-              </div>
+              <div class="flex items-center gap-1"></div>
             </div>
           </div>
         </div>

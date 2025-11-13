@@ -34,25 +34,4 @@ export function ragSessions(userId?: string) {
   return baseRequestClient.get(url);
 }
 
-export function ragMessages(sessionId: string, limit = 200, userId?: string) {
-  const search = new URLSearchParams({
-    sessionId,
-    limit: String(limit),
-    ...(userId ? { userId } : {}),
-  }).toString();
-  return baseRequestClient.get(`/rag/messages?${search}`);
-}
-
-export function ragPinSession(sessionId: string, pinned: boolean) {
-  return baseRequestClient.post(`/rag/sessions/${sessionId}/pin`, { pinned });
-}
-
-export function ragUpdateSessionTitle(sessionId: string, title: string) {
-  return baseRequestClient.put(`/rag/sessions/${sessionId}/title`, { title });
-}
-
-export function ragDeleteSession(sessionId: string) {
-  return baseRequestClient.delete(`/rag/sessions/${sessionId}`);
-}
-
 

@@ -22,15 +22,21 @@ export interface AIModel {
   createdBy?: string;
 }
 
+/**
+ * Get models list
+ * - If admin: returns all models (including disabled)
+ * - If not admin: returns only enabled models
+ */
 export function getModels() {
   return requestClient.get('/models/list');
 }
 
 /**
- * Get available (enabled) models for chat - public endpoint, no admin required
+ * Get available (enabled) models for chat - uses /models/list which filters by user role
+ * @deprecated Use getModels() instead - it now handles both admin and user cases
  */
 export function getAvailableModels() {
-  return requestClient.get('/models/available');
+  return requestClient.get('/models/list');
 }
 
 export function getModel(modelId: string) {

@@ -5,17 +5,29 @@ import { useResponseSuccess, useResponseError } from '~/utils/response';
 
 export default defineEventHandler(async (event) => {
 	try {
-		// Require admin access
-		await requireAdmin(event);
-	} catch (err: any) {
-		console.error('[Models][list] Admin check failed:', err);
-		event.node.res.statusCode = err.message?.includes('Unauthorized') ? 401 : 403;
-		return useResponseError(err.message || 'Forbidden: Admin access required');
-	}
-	
-	try {
 		const col = await getAIModelsCollection();
-		const models = await col.find({}).sort({ createdAt: -1 }).toArray();
+		
+		// Check if user is admin
+		let isAdmin = false;
+		try {
+			await requireAdmin(event);
+			isAdmin = true;
+		} catch {
+			// Not admin - that's OK, we'll return only enabled models
+			isAdmin = false;
+		}
+		
+		// If admin: return all models, otherwise: only enabled models
+		const query = isAdmin 
+			? {} 
+			: { 
+				$or: [
+					{ enabled: true },
+					{ enabled: 1 as any }
+				]
+			};
+		
+		const models = await col.find(query).sort({ createdAt: -1 }).toArray();
 		
 		// Don't return API keys in list (security)
 		const safeModels = models.map(m => ({
