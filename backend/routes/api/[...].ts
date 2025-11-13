@@ -58,7 +58,8 @@ export default defineEventHandler(async (event) => {
 
   // CORS handling (explicit for preflight with credentials)
   const requestOrigin = (event.node.req.headers.origin || '').toString();
-  const allowedOrigin = process.env.FRONTEND_URL || '*';
+  // Hardcode allowed frontend origin
+  const allowedOrigin = 'https://nlp-btl-dhhh.vercel.app';
   const allowOriginHeader =
     allowedOrigin === '*' ? requestOrigin || '*' : allowedOrigin;
 
