@@ -1,6 +1,16 @@
 {
   "buildCommand": "pnpm install --recursive --no-frozen-lockfile && pnpm --filter @vben/backend-mock build",
   "installCommand": "pnpm install --recursive --no-frozen-lockfile",
-  "framework": null
+  "framework": null,
+  "headers": [
+    {
+      "source": "/api/(.*)",
+      "headers": [
+        { "key": "Access-Control-Allow-Origin", "value": "https://nlp-btl-dhhh.vercel.app" },
+        { "key": "Access-Control-Allow-Credentials", "value": "true" },
+        { "key": "Access-Control-Allow-Methods", "value": "GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS" },
+        { "key": "Access-Control-Allow-Headers", "value": "Accept, Authorization, Content-Length, Content-Type, If-Match, If-Modified-Since, If-None-Match, If-Unmodified-Since, X-CSRF-TOKEN, X-Requested-With" }
+      ]
+    }
+  ]
 }
-
