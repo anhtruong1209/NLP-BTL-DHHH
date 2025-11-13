@@ -9,11 +9,21 @@ export default defineNitroConfig({
   preset: 'vercel',
   devErrorHandler: errorHandler,
   errorHandler: '~/error',
-  // Disable automatic API route generation to reduce serverless functions
-  // All API routes will be handled by routes/api/[...].ts
-  experimental: {
-    wasm: true,
-  },
+  // CRITICAL: Only scan routes/api/ to create single catch-all function
+  // This prevents Nitro from auto-generating functions from api/ folder
+  // Result: Only 1-2 functions instead of 35+
+  scanDirs: ['routes/api'],
+  // Explicitly ignore api folder and other directories to prevent auto-scanning
+  ignore: [
+    'api/**',
+    'apps/**',
+    'models/**',
+    'scripts/**',
+    'types/**',
+    'utils/**',
+    'middleware/**',
+    'routes/[...].ts', // Ignore root route to reduce functions
+  ],
   routeRules: {
     '/api/**': {
       cors: true,
@@ -27,6 +37,4 @@ export default defineNitroConfig({
       },
     },
   },
-  // Exclude api folder from automatic route generation
-  ignore: ['api/**'],
 });

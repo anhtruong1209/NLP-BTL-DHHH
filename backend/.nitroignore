@@ -1,0 +1,10 @@
+api/
+apps/
+models/
+scripts/
+types/
+utils/
+middleware/
+*.test.ts
+*.spec.ts
+
