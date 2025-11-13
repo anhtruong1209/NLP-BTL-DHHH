@@ -9,6 +9,11 @@ export default defineNitroConfig({
   preset: 'vercel',
   devErrorHandler: errorHandler,
   errorHandler: '~/error',
+  // Disable automatic API route generation to reduce serverless functions
+  // All API routes will be handled by routes/api/[...].ts
+  experimental: {
+    wasm: true,
+  },
   routeRules: {
     '/api/**': {
       cors: true,
@@ -22,4 +27,6 @@ export default defineNitroConfig({
       },
     },
   },
+  // Exclude api folder from automatic route generation
+  ignore: ['api/**'],
 });
