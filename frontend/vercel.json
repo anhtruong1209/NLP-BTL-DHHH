@@ -1,0 +1,13 @@
+{
+  "buildCommand": "pnpm install --recursive --no-frozen-lockfile && pnpm build --filter @vben/playground^... && pnpm --filter @vben/playground build",
+  "outputDirectory": "dist",
+  "installCommand": "pnpm install --recursive --no-frozen-lockfile",
+  "framework": "vite",
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}
+

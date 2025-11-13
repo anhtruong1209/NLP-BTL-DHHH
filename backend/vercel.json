@@ -1,0 +1,13 @@
+{
+  "buildCommand": "pnpm install --recursive --no-frozen-lockfile && pnpm --filter @vben/backend-mock build",
+  "outputDirectory": ".vercel/output",
+  "installCommand": "pnpm install --recursive --no-frozen-lockfile",
+  "framework": null,
+  "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": "/api/$1"
+    }
+  ]
+}
+
