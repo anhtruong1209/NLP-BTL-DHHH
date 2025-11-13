@@ -51,7 +51,7 @@ Vào **Settings** → **Build and Deployment Settings**:
 - **Root Directory**: `backend`
 - **Framework Preset**: `Other` (hoặc để trống)
 - **Build Command**: `pnpm install --recursive --no-frozen-lockfile && pnpm --filter @vben/backend-mock build`
-- **Output Directory**: `.vercel/output`
+- **Output Directory**: `.output`
 - **Install Command**: `pnpm install --recursive --no-frozen-lockfile`
 - **Include files outside the root directory**: ✅ **Enabled** (QUAN TRỌNG!)
 

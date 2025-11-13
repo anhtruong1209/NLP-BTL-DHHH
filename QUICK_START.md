@@ -7,7 +7,7 @@
 1. Tạo project mới trên Vercel
 2. **Root Directory**: `backend`
 3. **Build Command**: `pnpm install --recursive --no-frozen-lockfile && pnpm --filter @vben/backend-mock build`
-4. **Output Directory**: `.vercel/output`
+4. **Output Directory**: `.output`
 5. ✅ **Include files outside root**: Enabled
 6. Thêm Environment Variables:
    - `MONGODB_URI`

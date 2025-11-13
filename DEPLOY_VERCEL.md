@@ -34,7 +34,7 @@ Vào **Settings** → **General**:
 Vào **Settings** → **Build and Deployment Settings**:
 
 - **Build Command**: `pnpm install --recursive --no-frozen-lockfile && pnpm --filter @vben/backend-mock build`
-- **Output Directory**: `.vercel/output`
+- **Output Directory**: `.output`
 - **Install Command**: `pnpm install --recursive --no-frozen-lockfile`
 - **Development Command**: (để trống)
 - ✅ **Include files outside the root directory in the Build Step**: **Enabled** (QUAN TRỌNG!)
@@ -185,7 +185,7 @@ VITE_GLOB_API_URL=https://your-backend.vercel.app/api
 
 **Giải pháp**:
 1. Kiểm tra `backend/nitro.config.ts` có `preset: 'vercel'` không
-2. Kiểm tra Output Directory trong Vercel settings = `.vercel/output`
+2. Kiểm tra Output Directory trong Vercel settings = `.output`
 
 ### Lỗi: "API calls fail" hoặc "Network error"
 
@@ -230,7 +230,7 @@ VITE_GLOB_API_URL=https://your-backend.vercel.app/api
 ### Backend:
 - [ ] Root Directory: `backend`
 - [ ] Build Command: `pnpm install --recursive --no-frozen-lockfile && pnpm --filter @vben/backend-mock build`
-- [ ] Output Directory: `.vercel/output`
+- [ ] Output Directory: `.output`
 - [ ] Include files outside root: ✅ Enabled
 - [ ] Environment Variables:
   - [ ] `MONGODB_URI`
