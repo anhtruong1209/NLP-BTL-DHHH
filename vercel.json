@@ -1,8 +1,0 @@
-{
-  "framework": null,
-  "installCommand": "pnpm install --recursive --no-frozen-lockfile",
-  "buildCommand": "pnpm vercel:build",
-  "outputDirectory": ".vercel/output",
-  "ignoreCommand": "",
-  "regions": ["iad1"]
-}
