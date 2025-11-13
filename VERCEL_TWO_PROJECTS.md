@@ -23,10 +23,14 @@ Vào **Settings** → **Build and Deployment Settings**:
 
 #### Framework Settings:
 - **Framework Preset**: `Other` (hoặc để trống)
-- **Build Command**: `pnpm --filter @vben/playground build --mode production`
-- **Output Directory**: `dist`
+- **Build Command**: `pnpm build --filter @vben/playground^... && pnpm --filter @vben/playground build`
+- **Output Directory**: `dist` (relative to root directory `playground`)
 - **Install Command**: `pnpm install --recursive --no-frozen-lockfile`
 - **Development Command**: `None` (hoặc để trống)
+
+> ⚠️ **LƯU Ý**: Build command có 2 phần:
+> - `pnpm build --filter @vben/playground^...` - Build tất cả dependencies của playground trước
+> - `pnpm --filter @vben/playground build` - Build playground sau khi dependencies đã sẵn sàng
 
 #### Root Directory:
 - **Root Directory**: `playground`
@@ -195,7 +199,10 @@ VITE_GLOB_API_URL=http://localhost:5320/api
 **Giải pháp**:
 1. Đảm bảo "Include files outside the root directory" đã bật
 2. Kiểm tra `installCommand` có `--recursive` không
-3. Kiểm tra build logs xem có lỗi install không
+3. **QUAN TRỌNG**: Build command phải build dependencies trước:
+   - Sử dụng: `pnpm build --filter @vben/playground^... && pnpm --filter @vben/playground build`
+   - Hoặc: `turbo build --filter @vben/playground` (nếu có turbo)
+4. Kiểm tra build logs xem có lỗi install không
 
 ### Lỗi: "Backend build did not produce .vercel/output"
 
