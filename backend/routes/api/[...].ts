@@ -55,6 +55,37 @@ export default defineEventHandler(async (event) => {
   const rawPath = event.path || '';
   const path = rawPath.replace(/[?#].*$/, '').replace(/\/+$/, '') || '/';
   const method = event.method;
+
+  // CORS handling (explicit for preflight with credentials)
+  const requestOrigin = (event.node.req.headers.origin || '').toString();
+  const allowedOrigin = process.env.FRONTEND_URL || '*';
+  const allowOriginHeader =
+    allowedOrigin === '*' ? requestOrigin || '*' : allowedOrigin;
+
+  const requestedHeaders =
+    (event.node.req.headers['access-control-request-headers'] as string) || '';
+
+  event.node.res.setHeader('Vary', 'Origin');
+  if (allowOriginHeader) {
+    event.node.res.setHeader('Access-Control-Allow-Origin', allowOriginHeader);
+  }
+  event.node.res.setHeader('Access-Control-Allow-Credentials', 'true');
+  event.node.res.setHeader(
+    'Access-Control-Allow-Methods',
+    'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
+  );
+  event.node.res.setHeader(
+    'Access-Control-Allow-Headers',
+    requestedHeaders ||
+      'Accept, Authorization, Content-Length, Content-Type, If-Match, If-Modified-Since, If-None-Match, If-Unmodified-Since, X-CSRF-TOKEN, X-Requested-With',
+  );
+  event.node.res.setHeader('Access-Control-Expose-Headers', '*');
+
+  // Preflight
+  if (method === 'OPTIONS') {
+    event.node.res.statusCode = 204;
+    return '';
+  }
   
   const routeKey = matchRoute(path, method);
   
