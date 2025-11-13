@@ -14,7 +14,7 @@ export default eventHandler(async (event) => {
     pageSize = 20,
     name,
     code,
-    status
+    status,
     startTime,
     endTime,
   } = getQuery(event);
