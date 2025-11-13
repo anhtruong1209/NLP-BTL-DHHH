@@ -1,6 +1,5 @@
 {
   "buildCommand": "pnpm install --recursive --no-frozen-lockfile && pnpm --filter @vben/backend-mock build",
-  "outputDirectory": ".output",
   "installCommand": "pnpm install --recursive --no-frozen-lockfile",
   "framework": null
 }

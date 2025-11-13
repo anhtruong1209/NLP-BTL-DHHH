@@ -7,9 +7,6 @@ const frontendUrl = process.env.FRONTEND_URL || '*';
 
 export default defineNitroConfig({
   preset: 'vercel',
-  output: {
-    dir: '.output',
-  },
   devErrorHandler: errorHandler,
   errorHandler: '~/error',
   routeRules: {
