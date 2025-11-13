@@ -1,4 +1,5 @@
 api/
+handlers/
 apps/
 models/
 scripts/

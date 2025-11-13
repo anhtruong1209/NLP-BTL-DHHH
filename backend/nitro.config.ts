@@ -9,20 +9,21 @@ export default defineNitroConfig({
   preset: 'vercel',
   devErrorHandler: errorHandler,
   errorHandler: '~/error',
-  // CRITICAL: Only scan routes/api/ to create single catch-all function
+  // CRITICAL: Only scan routes/ directory, NOT api/ folder
   // This prevents Nitro from auto-generating functions from api/ folder
-  // Result: Only 1-2 functions instead of 35+
-  scanDirs: ['routes/api'],
-  // Explicitly ignore api folder and other directories to prevent auto-scanning
+  // Result: Only 1 function instead of 35+
+  scanDirs: ['routes'], // Only scan routes/, not api/
+  // Explicitly ignore api folder and other directories
   ignore: [
-    'api/**',
+    'api/**',           // CRITICAL: Ignore api folder completely - Nitro will NOT create functions from it
+    'handlers/**',      // Also ignore handlers if it exists
     'apps/**',
     'models/**',
     'scripts/**',
     'types/**',
     'utils/**',
     'middleware/**',
-    'routes/[...].ts', // Ignore root route to reduce functions
+    'routes/[...].ts',  // Ignore root catch-all route
   ],
   routeRules: {
     '/api/**': {
