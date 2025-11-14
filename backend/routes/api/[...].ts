@@ -90,11 +90,16 @@ export default defineEventHandler(async (event) => {
   // Normalize path: strip query string and trailing slash
   const path = rawPath.replace(/[?#].*$/, '').replace(/\/+$/, '') || '/';
   
+  console.log('[API Route] Request:', { method, rawPath, path });
+  
   const routeKey = matchRoute(path, method);
   
+  console.log('[API Route] Matched route:', routeKey);
+  
   if (!routeKey || !handlers[routeKey]) {
+    console.log('[API Route] No handler found. Available handlers:', Object.keys(handlers));
     event.node.res.statusCode = 404;
-    return { error: 'Not Found', path, method };
+    return { error: 'Not Found', path, method, availableRoutes: Object.keys(handlers) };
   }
   
   try {

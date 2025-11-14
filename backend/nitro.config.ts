@@ -23,6 +23,6 @@ export default defineNitroConfig({
     'types/**',
     'utils/**',
     'middleware/**',
-    'routes/[...].ts',  // Ignore root catch-all route
+    'routes/[...].ts',  // Ignore root catch-all route (but keep routes/api/[...].ts)
   ],
 });
