@@ -5,32 +5,28 @@ import { initMongoDB } from '~/utils/mongodb-init';
 initMongoDB().catch(console.error);
 
 // Lazy load handlers - only import when needed
-// Using relative paths resolved via import.meta.url to avoid alias issues in production
+// Use explicit relative import functions so Nitro can bundle correctly
 function getHandler(routeKey: string): (() => Promise<any>) | null {
-  const handlerMap: Record<string, string> = {
+  const handlerMap: Record<string, () => Promise<any>> = {
     // Auth
-    'POST:/api/auth/login': '../api/auth/login.post',
-    'POST:/api/auth/logout': '../api/auth/logout.post',
-    'GET:/api/auth/codes': '../api/auth/codes',
+    'POST:/api/auth/login': () => import('../../api/auth/login.post'),
+    'POST:/api/auth/logout': () => import('../../api/auth/logout.post'),
+    'GET:/api/auth/codes': () => import('../../api/auth/codes'),
     // User
-    'GET:/api/user/info': '../api/user/info',
+    'GET:/api/user/info': () => import('../../api/user/info'),
     // Models
-    'GET:/api/models/list': '../api/models/list.get',
-    'GET:/api/models/:id': '../api/models/[modelId].get',
+    'GET:/api/models/list': () => import('../../api/models/list.get'),
+    'GET:/api/models/:id': () => import('../../api/models/[modelId].get'),
     // System
-    'GET:/api/system/user/list': '../api/system/user/list',
-    'GET:/api/system/role/list': '../api/system/role/list',
+    'GET:/api/system/user/list': () => import('../../api/system/user/list'),
+    'GET:/api/system/role/list': () => import('../../api/system/role/list'),
     // RAG
-    'POST:/api/rag/chat': '../api/rag/chat.post',
-    'POST:/api/rag/ingest': '../api/rag/ingest.post',
-    'GET:/api/rag/sessions': '../api/rag/sessions.get',
+    'POST:/api/rag/chat': () => import('../../api/rag/chat.post'),
+    'POST:/api/rag/ingest': () => import('../../api/rag/ingest.post'),
+    'GET:/api/rag/sessions': () => import('../../api/rag/sessions.get'),
   };
   
-  const modulePath = handlerMap[routeKey];
-  if (!modulePath) return null;
-  
-  // Dynamic import only when handler is actually needed
-  return () => import(new URL(modulePath, import.meta.url).href);
+  return handlerMap[routeKey] || null;
 }
 
 function matchRoute(path: string, method: string): string | null {
