@@ -51,25 +51,21 @@ function matchRoute(path: string, method: string): string | null {
 }
 
 export default defineEventHandler(async (event) => {
-  // Normalize path: strip query string and trailing slash
-  const rawPath = event.path || '';
-  const path = rawPath.replace(/[?#].*$/, '').replace(/\/+$/, '') || '/';
   const method = event.method;
-
-  // CORS handling (explicit for preflight with credentials)
+  const rawPath = event.path || '';
+  
+  // CORS handling - MUST be set for ALL requests (including OPTIONS)
   const requestOrigin = (event.node.req.headers.origin || '').toString();
   // Hardcode allowed frontend origin
   const allowedOrigin = 'https://nlp-btl-dhhh.vercel.app';
-  const allowOriginHeader =
-    allowedOrigin === '*' ? requestOrigin || '*' : allowedOrigin;
+  const allowOriginHeader = allowedOrigin;
 
   const requestedHeaders =
     (event.node.req.headers['access-control-request-headers'] as string) || '';
 
+  // Set CORS headers FIRST, before any other processing
   event.node.res.setHeader('Vary', 'Origin');
-  if (allowOriginHeader) {
-    event.node.res.setHeader('Access-Control-Allow-Origin', allowOriginHeader);
-  }
+  event.node.res.setHeader('Access-Control-Allow-Origin', allowOriginHeader);
   event.node.res.setHeader('Access-Control-Allow-Credentials', 'true');
   event.node.res.setHeader(
     'Access-Control-Allow-Methods',
@@ -80,13 +76,19 @@ export default defineEventHandler(async (event) => {
     requestedHeaders ||
       'Accept, Authorization, Content-Length, Content-Type, If-Match, If-Modified-Since, If-None-Match, If-Unmodified-Since, X-CSRF-TOKEN, X-Requested-With',
   );
+  event.node.res.setHeader('Access-Control-Max-Age', '86400');
   event.node.res.setHeader('Access-Control-Expose-Headers', '*');
 
-  // Preflight
+  // Handle OPTIONS preflight request IMMEDIATELY - return 204 No Content
   if (method === 'OPTIONS') {
+    console.log('[CORS] Handling OPTIONS preflight for:', rawPath);
     event.node.res.statusCode = 204;
-    return '';
+    event.node.res.end();
+    return null;
   }
+
+  // Normalize path: strip query string and trailing slash
+  const path = rawPath.replace(/[?#].*$/, '').replace(/\/+$/, '') || '/';
   
   const routeKey = matchRoute(path, method);
   
