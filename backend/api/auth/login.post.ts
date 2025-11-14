@@ -2,15 +2,15 @@ import { defineEventHandler, readBody, setResponseStatus } from 'h3';
 import {
   clearRefreshTokenCookie,
   setRefreshTokenCookie,
-} from '~/utils/cookie-utils';
-import { generateAccessToken, generateRefreshToken } from '~/utils/jwt-utils';
-import { getUsersCollection } from '~/utils/mongodb';
-import { comparePassword, isPasswordHashed, hashPassword } from '~/utils/password-utils';
+} from '../../utils/cookie-utils';
+import { generateAccessToken, generateRefreshToken } from '../../utils/jwt-utils';
+import { getUsersCollection } from '../../utils/mongodb';
+import { comparePassword, isPasswordHashed, hashPassword } from '../../utils/password-utils';
 import {
   forbiddenResponse,
   useResponseError,
   useResponseSuccess,
-} from '~/utils/response';
+} from '../../utils/response';
 
 export default defineEventHandler(async (event) => {
   const { password, username } = await readBody(event);

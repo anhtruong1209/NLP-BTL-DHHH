@@ -1,7 +1,7 @@
 import { defineEventHandler, getRouterParam } from 'h3';
-import { getAIModelsCollection } from '~/utils/mongodb';
-import { requireAdmin } from '~/utils/auth-utils';
-import { useResponseSuccess, useResponseError } from '~/utils/response';
+import { getAIModelsCollection } from '../../utils/mongodb';
+import { requireAdmin } from '../../utils/auth-utils';
+import { useResponseSuccess, useResponseError } from '../../utils/response';
 
 export default defineEventHandler(async (event) => {
 	try {

@@ -1,7 +1,7 @@
 import { eventHandler, getQuery } from 'h3';
-import { verifyAccessToken } from '~/utils/jwt-utils';
-import { getRolesCollection } from '~/utils/mongodb';
-import { unAuthorizedResponse, usePageResponseSuccess } from '~/utils/response';
+import { verifyAccessToken } from '../../../utils/jwt-utils';
+import { getRolesCollection } from '../../../utils/mongodb';
+import { unAuthorizedResponse, usePageResponseSuccess } from '../../../utils/response';
 
 export default eventHandler(async (event) => {
   const userinfo = await verifyAccessToken(event);

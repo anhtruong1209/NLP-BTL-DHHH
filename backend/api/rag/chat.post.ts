@@ -1,6 +1,6 @@
 import { defineEventHandler, readBody } from 'h3';
 import { nanoid } from 'nanoid';
-import { embedText, cosineSimilarity } from '~/utils/embeddings';
+import { embedText, cosineSimilarity } from '../../utils/embeddings';
 import {
 	getChatMessagesCollection,
 	getChatSessionsCollection,
@@ -10,8 +10,8 @@ import {
 	type ChatMessage,
 	type ChatSession,
 	type ModelUsage,
-} from '~/utils/mongodb';
-import { generateWithGemini } from '~/utils/gemini';
+} from '../../utils/mongodb';
+import { generateWithGemini } from '../../utils/gemini';
 
 interface ChatBody {
 	sessionId?: string; 

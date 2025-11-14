@@ -1,5 +1,5 @@
 import { defineEventHandler, getQuery } from 'h3';
-import { getChatSessionsCollection } from '~/utils/mongodb';
+import { getChatSessionsCollection } from '../../utils/mongodb';
 
 export default defineEventHandler(async (event) => {
 	const query = getQuery(event) as { userId?: string };

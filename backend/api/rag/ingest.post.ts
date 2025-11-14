@@ -1,7 +1,7 @@
 import { defineEventHandler, readBody } from 'h3';
 import { nanoid } from 'nanoid';
-import { chunkTextByLength, embedText } from '~/utils/embeddings';
-import { getRagChunksCollection, type RagChunk } from '~/utils/mongodb';
+import { chunkTextByLength, embedText } from '../../utils/embeddings';
+import { getRagChunksCollection, type RagChunk } from '../../utils/mongodb';
 
 interface IngestBodyItem {
 	docId?: string;
