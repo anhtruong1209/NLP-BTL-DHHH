@@ -1,4 +1,4 @@
-import { defineEventHandler } from 'h3';
+import { defineEventHandler, setResponseStatus } from 'h3';
 import { initMongoDB } from '~/utils/mongodb-init';
 
 // Khởi tạo MongoDB khi server start
@@ -82,9 +82,8 @@ export default defineEventHandler(async (event) => {
   // Handle OPTIONS preflight request IMMEDIATELY - return 204 No Content
   if (method === 'OPTIONS') {
     console.log('[CORS] Handling OPTIONS preflight for:', rawPath);
-    event.node.res.statusCode = 204;
-    event.node.res.end();
-    return null;
+    setResponseStatus(event, 204);
+    return '';
   }
 
   // Normalize path: strip query string and trailing slash
