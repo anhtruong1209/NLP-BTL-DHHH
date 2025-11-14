@@ -4,37 +4,60 @@ import { initMongoDB } from '~/utils/mongodb-init';
 // Khởi tạo MongoDB khi server start
 initMongoDB().catch(console.error);
 
-// Import tất cả handlers - lazy load để giảm bundle size
-const handlers: Record<string, () => Promise<any>> = {
-  // Auth
-  'POST:/api/auth/login': () => import('~/api/auth/login.post'),
-  'POST:/api/auth/logout': () => import('~/api/auth/logout.post'),
-  'GET:/api/auth/codes': () => import('~/api/auth/codes'),
-  // User
-  'GET:/api/user/info': () => import('~/api/user/info'),
-  // Models
-  'GET:/api/models/list': () => import('~/api/models/list.get'),
-  'GET:/api/models/:id': () => import('~/api/models/[modelId].get'),
+// Lazy load handlers - only import when needed
+// Using function to prevent Nitro from resolving imports at build time
+function getHandler(routeKey: string): (() => Promise<any>) | null {
+  const handlerMap: Record<string, string> = {
+    // Auth
+    'POST:/api/auth/login': '~/api/auth/login.post',
+    'POST:/api/auth/logout': '~/api/auth/logout.post',
+    'GET:/api/auth/codes': '~/api/auth/codes',
+    // User
+    'GET:/api/user/info': '~/api/user/info',
+    // Models
+    'GET:/api/models/list': '~/api/models/list.get',
+    'GET:/api/models/:id': '~/api/models/[modelId].get',
+    // System
+    'GET:/api/system/user/list': '~/api/system/user/list',
+    'GET:/api/system/role/list': '~/api/system/role/list',
+    // RAG
+    'POST:/api/rag/chat': '~/api/rag/chat.post',
+    'POST:/api/rag/ingest': '~/api/rag/ingest.post',
+    'GET:/api/rag/sessions': '~/api/rag/sessions.get',
+  };
   
-  // System
-  'GET:/api/system/user/list': () => import('~/api/system/user/list'),
-  'GET:/api/system/role/list': () => import('~/api/system/role/list'),
-  // RAG
-  'POST:/api/rag/chat': () => import('~/api/rag/chat.post'),
-  'POST:/api/rag/ingest': () => import('~/api/rag/ingest.post'),
-  'GET:/api/rag/sessions': () => import('~/api/rag/sessions.get'),
-};
+  const modulePath = handlerMap[routeKey];
+  if (!modulePath) return null;
+  
+  // Dynamic import only when handler is actually needed
+  return () => import(modulePath);
+}
 
 function matchRoute(path: string, method: string): string | null {
   const routeKey = `${method}:${path}`;
   
+  // Handler map for pattern matching
+  const handlerPatterns = [
+    'POST:/api/auth/login',
+    'POST:/api/auth/logout',
+    'GET:/api/auth/codes',
+    'GET:/api/user/info',
+    'GET:/api/models/list',
+    'GET:/api/models/:id',
+    'GET:/api/system/user/list',
+    'GET:/api/system/role/list',
+    'POST:/api/rag/chat',
+    'POST:/api/rag/ingest',
+    'GET:/api/rag/sessions',
+  ];
+  
   // Try exact match first
-  if (handlers[routeKey]) {
+  if (getHandler(routeKey)) {
     return routeKey;
   }
   
   // Try pattern matching for dynamic routes
-  for (const [pattern, handler] of Object.entries(handlers)) {
+  for (const pattern of handlerPatterns) {
     const [patternMethod, patternPath] = pattern.split(':');
     if (patternMethod !== method) continue;
     
@@ -54,16 +77,47 @@ export default defineEventHandler(async (event) => {
   const method = event.method;
   const rawPath = event.path || '';
   
-  // CORS handling - MUST be set for ALL requests (including OPTIONS)
+  // Handle OPTIONS preflight request FIRST - before any other processing
+  // This prevents any handler imports or route matching
+  if (method === 'OPTIONS') {
+    console.log('[CORS] Handling OPTIONS preflight for:', rawPath);
+    
+    // Set CORS headers for OPTIONS
+    const requestOrigin = (event.node.req.headers.origin || '').toString();
+    const allowedOrigin = 'https://nlp-btl-dhhh.vercel.app';
+    const requestedHeaders =
+      (event.node.req.headers['access-control-request-headers'] as string) || '';
+
+    event.node.res.setHeader('Vary', 'Origin');
+    event.node.res.setHeader('Access-Control-Allow-Origin', allowedOrigin);
+    event.node.res.setHeader('Access-Control-Allow-Credentials', 'true');
+    event.node.res.setHeader(
+      'Access-Control-Allow-Methods',
+      'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
+    );
+    event.node.res.setHeader(
+      'Access-Control-Allow-Headers',
+      requestedHeaders ||
+        'Accept, Authorization, Content-Length, Content-Type, If-Match, If-Modified-Since, If-None-Match, If-Unmodified-Since, X-CSRF-TOKEN, X-Requested-With',
+    );
+    event.node.res.setHeader('Access-Control-Max-Age', '86400');
+    event.node.res.setHeader('Access-Control-Expose-Headers', '*');
+    
+    event.node.res.statusCode = 204;
+    event.node.res.statusMessage = 'No Content';
+    event.node.res.end();
+    return;
+  }
+  
+  // CORS handling for non-OPTIONS requests
   const requestOrigin = (event.node.req.headers.origin || '').toString();
-  // Hardcode allowed frontend origin
   const allowedOrigin = 'https://nlp-btl-dhhh.vercel.app';
   const allowOriginHeader = allowedOrigin;
 
   const requestedHeaders =
     (event.node.req.headers['access-control-request-headers'] as string) || '';
 
-  // Set CORS headers FIRST, before any other processing
+  // Set CORS headers
   event.node.res.setHeader('Vary', 'Origin');
   event.node.res.setHeader('Access-Control-Allow-Origin', allowOriginHeader);
   event.node.res.setHeader('Access-Control-Allow-Credentials', 'true');
@@ -79,17 +133,6 @@ export default defineEventHandler(async (event) => {
   event.node.res.setHeader('Access-Control-Max-Age', '86400');
   event.node.res.setHeader('Access-Control-Expose-Headers', '*');
 
-  // Handle OPTIONS preflight request IMMEDIATELY - return 204 No Content
-  // MUST return early to prevent any handler loading
-  if (method === 'OPTIONS') {
-    console.log('[CORS] Handling OPTIONS preflight for:', rawPath);
-    event.node.res.statusCode = 204;
-    event.node.res.statusMessage = 'No Content';
-    // End response immediately to prevent any further processing
-    event.node.res.end();
-    return;
-  }
-
   // Normalize path: strip query string and trailing slash
   const path = rawPath.replace(/[?#].*$/, '').replace(/\/+$/, '') || '/';
   
@@ -99,15 +142,22 @@ export default defineEventHandler(async (event) => {
   
   console.log('[API Route] Matched route:', routeKey);
   
-  if (!routeKey || !handlers[routeKey]) {
-    console.log('[API Route] No handler found. Available handlers:', Object.keys(handlers));
+  if (!routeKey) {
+    console.log('[API Route] No route matched');
     event.node.res.statusCode = 404;
-    return { error: 'Not Found', path, method, availableRoutes: Object.keys(handlers) };
+    return { error: 'Not Found', path, method };
+  }
+  
+  const handlerFactory = getHandler(routeKey);
+  if (!handlerFactory) {
+    console.log('[API Route] No handler found for route:', routeKey);
+    event.node.res.statusCode = 404;
+    return { error: 'Not Found', path, method, routeKey };
   }
   
   try {
     // Lazy load handler only for non-OPTIONS requests
-    const handlerModule = await handlers[routeKey]();
+    const handlerModule = await handlerFactory();
     const handler = handlerModule.default || handlerModule;
     
     if (typeof handler === 'function') {
