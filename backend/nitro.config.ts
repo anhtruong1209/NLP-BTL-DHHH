@@ -25,4 +25,14 @@ export default defineNitroConfig({
     'middleware/**',
     'routes/[...].ts',  // Ignore root catch-all route (but keep routes/api/[...].ts)
   ],
+  // Override Vercel config to route /api/* to __fallback
+  vercel: {
+    config: {
+      routes: [
+        { handle: 'filesystem' },
+        { src: '/api/(.*)', dest: '/__fallback' },
+        { src: '/(.*)', dest: '/__fallback' },
+      ],
+    },
+  },
 });
