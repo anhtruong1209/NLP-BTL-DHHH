@@ -80,11 +80,14 @@ export default defineEventHandler(async (event) => {
   event.node.res.setHeader('Access-Control-Expose-Headers', '*');
 
   // Handle OPTIONS preflight request IMMEDIATELY - return 204 No Content
+  // MUST return early to prevent any handler loading
   if (method === 'OPTIONS') {
     console.log('[CORS] Handling OPTIONS preflight for:', rawPath);
     event.node.res.statusCode = 204;
     event.node.res.statusMessage = 'No Content';
-    return undefined;
+    // End response immediately to prevent any further processing
+    event.node.res.end();
+    return;
   }
 
   // Normalize path: strip query string and trailing slash
@@ -103,6 +106,7 @@ export default defineEventHandler(async (event) => {
   }
   
   try {
+    // Lazy load handler only for non-OPTIONS requests
     const handlerModule = await handlers[routeKey]();
     const handler = handlerModule.default || handlerModule;
     
