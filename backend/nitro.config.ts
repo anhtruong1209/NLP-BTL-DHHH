@@ -25,6 +25,10 @@ export default defineNitroConfig({
     'middleware/**',
     'routes/[...].ts',  // Ignore root catch-all route (but keep routes/api/[...].ts)
   ],
+  // Configure alias resolution for production
+  alias: {
+    '~': '.',
+  },
   // Override Vercel config to route /api/* to __fallback
   vercel: {
     config: {
