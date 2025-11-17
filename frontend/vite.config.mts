@@ -1,5 +1,6 @@
 import { defineConfig } from '@vben/vite-config';
 import type { Plugin } from 'vite';
+import { fileURLToPath } from 'node:url';
 
 // Plugin to replace jiti and node: modules
 function replaceJitiPlugin(): Plugin {
@@ -44,6 +45,7 @@ function replaceJitiPlugin(): Plugin {
 }
 
 export default defineConfig(async () => {
+  const resolvePath = (dir: string) => fileURLToPath(new URL(dir, import.meta.url));
   return {
     application: {},
     vite: {
@@ -116,6 +118,10 @@ export default defineConfig(async () => {
           // Alias jiti to empty module - multiple patterns
           'jiti': 'data:text/javascript,export default () => ({});',
           'jiti/lib/jiti.mjs': 'data:text/javascript,export default () => ({});',
+          '#': resolvePath('./src/'),
+          '#/': resolvePath('./src/'),
+          '@': resolvePath('./src/'),
+          '@/': resolvePath('./src/'),
         },
       },
     },

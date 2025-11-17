@@ -74,16 +74,7 @@ function createRequestClient(baseURL: string, options?: RequestClientOptions) {
     return token ? `Bearer ${token}` : null;
   }
 
-  // 请求头处理
-  client.addRequestInterceptor({
-    fulfilled: async (config) => {
-      const accessStore = useAccessStore();
-
-      config.headers.Authorization = formatToken(accessStore.accessToken);
-      config.headers['Accept-Language'] = preferences.app.locale;
-      return config;
-    },
-  });
+  addAuthHeaderInterceptor(client, formatToken);
 
   // 处理返回的响应数据格式
   client.addResponseInterceptor(
@@ -125,6 +116,28 @@ export const requestClient = createRequestClient(apiURL, {
 });
 
 export const baseRequestClient = new RequestClient({ baseURL: apiURL });
+addAuthHeaderInterceptor(baseRequestClient, (token) =>
+  token ? `Bearer ${token}` : null,
+);
+
+function addAuthHeaderInterceptor(
+  client: RequestClient,
+  formatToken: (token: null | string) => null | string,
+) {
+  client.addRequestInterceptor({
+    fulfilled: async (config) => {
+      const accessStore = useAccessStore();
+      const headers =
+        (config.headers ?? (config.headers = {} as any)) as Record<
+          string,
+          any
+        >;
+      headers.Authorization = formatToken(accessStore.accessToken);
+      headers['Accept-Language'] = preferences.app.locale;
+      return config;
+    },
+  });
+}
 
 export interface PageFetchParams {
   [key: string]: any;

@@ -1,5 +1,5 @@
 import { defineEventHandler, readBody } from 'h3';
-import { nanoid } from 'nanoid';
+import { randomUUID } from 'node:crypto';
 import { embedText, cosineSimilarity } from '../../utils/embeddings';
 import {
 	getChatMessagesCollection,
@@ -12,6 +12,7 @@ import {
 	type ModelUsage,
 } from '../../utils/mongodb';
 import { generateWithGemini } from '../../utils/gemini';
+import { verifyAccessToken } from '../../utils/jwt-utils';
 
 interface ChatBody {
 	sessionId?: string; 
@@ -79,6 +80,20 @@ export default defineEventHandler(async (event) => {
 		return { error: 'message is required' };
 	}
 
+	const userinfo = await verifyAccessToken(event);
+	if (!userinfo) {
+		event.node.res.statusCode = 401;
+		return { error: 'Unauthorized: Please login' };
+	}
+
+	const userId = String(userinfo.id ?? userinfo.username ?? '').trim();
+	if (!userId) {
+		event.node.res.statusCode = 400;
+		return { error: 'User ID is required' };
+	}
+	const userRole = (userinfo as any)?.role;
+	const isAdmin = userRole === 0;
+
 	const collection = body.collection?.trim() || 'default';
 	const topK = Math.max(1, Math.min(20, body.topK ?? 5));
 	const historyLimit = Math.max(0, Math.min(50, body.historyLimit ?? 10));
@@ -91,6 +106,18 @@ export default defineEventHandler(async (event) => {
 	const modelsCol = await getAIModelsCollection();
 
 	// Get model config from database
+	function isModelEnabled(model: any) {
+		const val = model?.enabled;
+		if (val === undefined || val === null) {
+			return true;
+		}
+		if (typeof val === 'string') {
+			const normalized = val.toLowerCase();
+			return normalized === '1' || normalized === 'true';
+		}
+		return val === true || val === 1;
+	}
+
 	let modelConfig: any = null;
 	if (modelKey) {
 		// Validate modelKey is not an API key (API keys are usually long strings starting with specific prefixes)
@@ -108,10 +135,15 @@ export default defineEventHandler(async (event) => {
 			};
 		}
 		
-		modelConfig = await modelsCol.findOne({ 
-			modelKey, 
-			enabled: true 
-		});
+		const byKey = await modelsCol.findOne({ modelKey });
+		if (byKey && isModelEnabled(byKey)) {
+			modelConfig = byKey;
+		} else {
+			const byId = await modelsCol.findOne({ modelId: modelKey });
+			if (byId && isModelEnabled(byId)) {
+				modelConfig = byId;
+			}
+		}
 		if (!modelConfig) {
 			console.warn(`[RAG][chat] Model ${modelKey} not found or disabled, using fallback`);
 		}
@@ -122,6 +154,20 @@ export default defineEventHandler(async (event) => {
 	const useModelType = modelConfig?.type || 'gemini';
 	const apiKey = modelConfig?.apiKey || process.env.GEMINI_API_KEY;
 	const modelName = modelConfig?.name || useModel;
+
+	if (!apiKey) {
+		console.error('[RAG][chat] No API key available for model', {
+			useModel,
+			foundInDb: !!modelConfig,
+			modelFields: modelConfig ? Object.keys(modelConfig) : [],
+			hasEnvKey: !!process.env.GEMINI_API_KEY,
+		});
+		event.node.res.statusCode = 500;
+		return {
+			ok: false,
+			error: 'Gemini API key is required. Please configure the model in the database.',
+		};
+	}
 
 	console.log('[RAG][chat] model lookup', {
 		requestedModelKey: modelKey,
@@ -140,43 +186,57 @@ export default defineEventHandler(async (event) => {
 		collection,
 		topK,
 		historyLimit,
-		hasUserId: !!body.userId,
+		userId,
 		msgLen: message.length,
 	});
-
-	// Normalize userId to string for consistency
-	const userId = body.userId ? String(body.userId).trim() : undefined;
 
 	let sessionId = body.sessionId?.trim();
 	let isNewSession = false;
 	if (!sessionId) {
-		sessionId = nanoid();
+		sessionId = randomUUID();
 		isNewSession = true;
 		const now = new Date().toISOString();
 		const sessionDoc: ChatSession = {
 			sessionId,
-			userId: userId,
-			title: message.slice(0, 50),
+			userId,
+			title: message.slice(0, 50) || 'New chat',
+			model: useModel,
 			createdAt: now,
 			updatedAt: now,
 		};
 		await sessionsCol.insertOne(sessionDoc);
 		console.log('[RAG][chat] created session', sessionId, 'for user', userId);
 	} else {
-		// Update existing session's userId if not set
 		const existingSession = await sessionsCol.findOne({ sessionId });
-		if (existingSession && userId && !existingSession.userId) {
+		if (!existingSession) {
+			event.node.res.statusCode = 404;
+			return { error: 'Session not found' };
+		}
+		const sessionOwnerId = existingSession.userId
+			? String(existingSession.userId)
+			: '';
+		if (!isAdmin && sessionOwnerId && sessionOwnerId !== userId) {
+			event.node.res.statusCode = 403;
+			return { error: 'Forbidden: Session does not belong to user' };
+		}
+		if (!sessionOwnerId) {
 			await sessionsCol.updateOne({ sessionId }, { $set: { userId } });
 			console.log('[RAG][chat] updated session userId', sessionId, 'to', userId);
 		}
 	}
 
-	// Save user message
+	// Save user message (chat detail - input)
 	const userMsg: ChatMessage = {
 		sessionId,
+		userId,
 		role: 'user',
+		direction: 'in',
 		content: message,
+		model: useModel,
 		createdAt: new Date().toISOString(),
+		metadata: {
+			systemPrompt: body.systemPrompt,
+		},
 	};
 	await messagesCol.insertOne(userMsg);
 	const t1 = Date.now();
@@ -262,10 +322,13 @@ export default defineEventHandler(async (event) => {
 		};
 	}
 
-	// Save assistant message with context used
+	// Save assistant message with context used (chat detail - output)
 	const assistantMsg: ChatMessage = {
 		sessionId,
+		userId,
 		role: 'assistant',
+		direction: 'out',
+		model: useModel,
 		content: answer,
 		createdAt: new Date().toISOString(),
 		contextChunks: scored.map((s) => ({
@@ -275,11 +338,14 @@ export default defineEventHandler(async (event) => {
 			score: s.score,
 			content: s.chunk.content,
 		})),
+		metadata: {
+			modelName,
+		},
 	};
-	await messagesCol.insertOne(assistantMsg);
+	const assistantInsert = await messagesCol.insertOne(assistantMsg);
 	await sessionsCol.updateOne(
 		{ sessionId },
-		{ $set: { updatedAt: new Date().toISOString() } },
+		{ $set: { updatedAt: new Date().toISOString(), model: useModel } },
 	);
 	
 	// Save model usage statistics
@@ -287,7 +353,7 @@ export default defineEventHandler(async (event) => {
 		modelKey: useModel,
 		userId: userId,
 		sessionId,
-		messageId: assistantMsg._id?.toString(),
+		messageId: assistantInsert.insertedId?.toString(),
 		timestamp: new Date().toISOString(),
 		responseTime: Date.now() - t4,
 	};

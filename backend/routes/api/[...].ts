@@ -22,8 +22,8 @@ function getHandler(routeKey: string): (() => Promise<any>) | null {
     'GET:/api/system/role/list': () => import('../../api/system/role/list'),
     // RAG
     'POST:/api/rag/chat': () => import('../../api/rag/chat.post'),
-    'POST:/api/rag/ingest': () => import('../../api/rag/ingest.post'),
     'GET:/api/rag/sessions': () => import('../../api/rag/sessions.get'),
+    'GET:/api/rag/messages': () => import('../../api/rag/messages.get'),
   };
   
   return handlerMap[routeKey] || null;
@@ -45,6 +45,7 @@ function matchRoute(path: string, method: string): string | null {
     'POST:/api/rag/chat',
     'POST:/api/rag/ingest',
     'GET:/api/rag/sessions',
+    'GET:/api/rag/messages',
   ];
   
   // Try exact match first
