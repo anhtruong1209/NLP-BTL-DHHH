@@ -5,7 +5,13 @@
   "keywords": [
     "monorepo",
     "turbo",
+    "vben",
     "ChatBot-NLP-VMU",
+    "vben pro",
+    "vue",
+    "vue admin",
+    "vue ChatBot-NLP-VMU",
+    "vue ChatBot-NLP-VMU pro",
     "vue3"
   ],
   "homepage": "https://github.com/vbenjs/vue-vben-admin",
@@ -13,9 +19,9 @@
   "repository": "vbenjs/vue-vben-admin.git",
   "license": "MIT",
   "author": {
-    "name": "",
-    "email": "",
-    "url": ""
+    "name": "vben",
+    "email": "ann.vben@gmail.com",
+    "url": "https://github.com/anncwb"
   },
   "type": "module",
   "scripts": {

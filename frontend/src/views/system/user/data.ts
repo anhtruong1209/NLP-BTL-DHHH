@@ -1,5 +1,3 @@
-import type { Ref } from 'vue';
-
 import type { VbenFormSchema } from '#/adapter/form';
 import type { OnActionClickFn, VxeTableGridOptions } from '#/adapter/vxe-table';
 import type { SystemUserApi } from '#/api';
@@ -7,9 +5,7 @@ import type { SystemUserApi } from '#/api';
 import { $t } from '#/locales';
 import { formatDate } from '@vben/utils';
 
-export function useFormSchema(
-  roleOptions?: Ref<Array<{ label: string; value: string }>>,
-): VbenFormSchema[] {
+export function useFormSchema(): VbenFormSchema[] {
   return [
     {
       component: 'Input',
@@ -37,10 +33,14 @@ export function useFormSchema(
     {
       component: 'Select',
       componentProps: {
-        options: roleOptions?.value || [],
+        mode: 'multiple',
+        options: [
+          { label: 'Admin', value: 'admin' },
+          { label: 'User', value: 'user' },
+        ],
       },
-      fieldName: 'role',
-      label: $t('system.user.role'),
+      fieldName: 'roles',
+      label: $t('system.user.roles'),
       rules: 'required',
     },
     {
@@ -136,9 +136,18 @@ export function useColumns<T = SystemUserApi.SystemUser>(
       width: 150,
     },
     {
-      field: 'roleName',
-      title: $t('system.user.role'),
+      field: 'roles',
+      title: $t('system.user.roles'),
       width: 150,
+      cellRender: {
+        name: 'CellTag',
+        attrs: {
+          options: [
+            { label: 'Admin', value: 'admin', color: 'blue' },
+            { label: 'User', value: 'user', color: 'green' },
+          ],
+        },
+      },
     },
     {
       cellRender: {

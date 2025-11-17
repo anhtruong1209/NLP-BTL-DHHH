@@ -25,21 +25,21 @@ export default eventHandler(async (event) => {
     // Build filter
     const filter: any = {};
     
-  if (name) {
+    if (name) {
       filter.name = { $regex: name, $options: 'i' };
-  }
+    }
     if (code) {
       filter.code = { $regex: code, $options: 'i' };
     }
     if (['0', '1'].includes(status as string)) {
       filter.status = Number(status);
-  }
+    }
     if (startTime || endTime) {
       filter.createTime = {};
-  if (startTime) {
+      if (startTime) {
         filter.createTime.$gte = startTime;
-  }
-  if (endTime) {
+      }
+      if (endTime) {
         filter.createTime.$lte = endTime;
       }
     }
@@ -55,7 +55,7 @@ export default eventHandler(async (event) => {
     // Get data
     const roles = await rolesCollection
       .find(filter)
-      .sort({ code: 1, createTime: -1 })
+      .sort({ createTime: -1 })
       .skip(skip)
       .limit(pageSizeNum)
       .toArray();
@@ -66,7 +66,7 @@ export default eventHandler(async (event) => {
       id: role.id || _id?.toString(),
     }));
 
-  return usePageResponseSuccess(page as string, pageSize as string, listData);
+    return usePageResponseSuccess(page as string, pageSize as string, listData);
   } catch (error) {
     console.error('Error fetching roles:', error);
     return {

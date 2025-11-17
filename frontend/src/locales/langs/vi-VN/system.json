@@ -71,14 +71,13 @@
     "email": "Email",
     "phone": "Số điện thoại",
     "roles": "Vai trò",
-    "role": "Vai trò",
     "status": "Trạng thái",
     "createTime": "Thời gian tạo",
     "remark": "Ghi chú",
     "operation": "Thao tác"
   },
   "model": {
-    "title": "Quản lý mô hình",
+    "title": "Quản lý Model",
     "list": "Danh sách Model",
     "name": "Model",
     "modelName": "Tên Model",

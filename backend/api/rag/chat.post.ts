@@ -90,86 +90,38 @@ export default defineEventHandler(async (event) => {
 	const usageCol = await getModelUsageCollection();
 	const modelsCol = await getAIModelsCollection();
 
-	// Helper to detect if a string looks like an API key
-	function looksLikeApiKeyStr(val?: string) {
-		if (!val) return false;
-		return (
-			val.length > 30 &&
-			(val.startsWith('AIza') || // Google API key
-				val.startsWith('sk-') || // OpenAI API key
-				/^[A-Za-z0-9_-]{40,}$/.test(val))
-		);
-	}
-
 	// Get model config from database
 	let modelConfig: any = null;
-	let useModelKey = modelKey; // Use separate variable for modelKey
-	
 	if (modelKey) {
-		// Try to find model by modelId first (canonical identifier)
-		modelConfig = await modelsCol.findOne(
-			{
-				modelId: modelKey,
-				$or: [{ enabled: true }, { enabled: 1 as any }],
-			} as any,
+		// Validate modelKey is not an API key (API keys are usually long strings starting with specific prefixes)
+		const looksLikeApiKey = modelKey.length > 30 && (
+			modelKey.startsWith('AIza') || // Google API key
+			modelKey.startsWith('sk-') || // OpenAI API key
+			modelKey.match(/^[A-Za-z0-9_-]{40,}$/) // Generic long alphanumeric string
 		);
-
-		// If not found by modelId, try to find model by modelKey (even if it looks like API key - might be legacy data)
-		// enabled can be 1 (number) or true (boolean) in DB
-		if (!modelConfig) {
-		modelConfig = await modelsCol.findOne({ 
-			modelKey, 
-				$or: [{ enabled: true }, { enabled: 1 as any }],
-		} as any);
+		
+		if (looksLikeApiKey) {
+			console.error(`[RAG][chat] Invalid modelKey: looks like an API key. Please use modelKey from database, not API key.`);
+			event.node.res.statusCode = 400;
+			return {
+				error: 'Invalid modelKey: Please select a model from the dropdown, not an API key.',
+			};
 		}
 		
-		// If not found by modelKey, check if it's an API key and try to find by apiKey field
+		modelConfig = await modelsCol.findOne({ 
+			modelKey, 
+			enabled: true 
+		});
 		if (!modelConfig) {
-			if (looksLikeApiKeyStr(modelKey)) {
-				console.warn(`[RAG][chat] ModelKey looks like API key, trying to find model by apiKey field...`);
-				// Try to find model where apiKey matches (legacy data where modelKey was set to API key)
-				modelConfig = await modelsCol.findOne({ 
-					apiKey: modelKey,
-					$or: [
-						{ enabled: true },
-						{ enabled: 1 as any } // Type assertion for MongoDB query compatibility
-					]
-				} as any);
-				
-				if (modelConfig) {
-					console.warn(`[RAG][chat] Found model by apiKey, but modelKey mismatch. Using model: ${modelConfig.modelKey}`);
-					// Use the correct modelKey from DB
-					useModelKey = modelConfig.modelKey;
-				} else {
-					console.error(`[RAG][chat] Invalid modelKey: looks like an API key and not found in database.`);
-					event.node.res.statusCode = 400;
-					return {
-						error: 'Invalid modelKey: Please select a model from the dropdown, not an API key.',
-					};
-				}
-			} else {
-				console.warn(`[RAG][chat] Model ${modelKey} not found or disabled, using fallback`);
-			}
+			console.warn(`[RAG][chat] Model ${modelKey} not found or disabled, using fallback`);
 		}
 	}
 
 	// Determine which model to use
-	let useModel = modelConfig?.modelKey || useModelKey;
+	const useModel = modelConfig?.modelKey || modelKey;
 	const useModelType = modelConfig?.type || 'gemini';
 	const apiKey = modelConfig?.apiKey || process.env.GEMINI_API_KEY;
 	const modelName = modelConfig?.name || useModel;
-
-	// If DB accidentally stored modelKey as API key, switch to canonical modelId for Gemini endpoint
-	if (modelConfig && useModelType === 'gemini' && looksLikeApiKeyStr(modelConfig.modelKey)) {
-		if (modelConfig.modelId) {
-			console.warn(`[RAG][chat] modelKey looks like API key; switching to modelId: ${modelConfig.modelId}`);
-			useModel = modelConfig.modelId;
-		} else {
-			// Fallback to a safe default
-			console.warn(`[RAG][chat] modelKey looks like API key and no modelId found; using default gemini-2.5-flash`);
-			useModel = 'gemini-2.5-flash';
-		}
-	}
 
 	console.log('[RAG][chat] model lookup', {
 		requestedModelKey: modelKey,

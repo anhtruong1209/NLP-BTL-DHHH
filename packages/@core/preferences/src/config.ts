@@ -41,9 +41,9 @@ const defaultPreferences: Preferences = {
     styleType: 'normal',
   },
   copyright: {
-    companyName: 'ChatBot-NLP-VMU',
-    companySiteLink: 'https://www.chatbot-nlp-vmu.com',
-    date: '2025',
+    companyName: 'Vben',
+    companySiteLink: 'https://www.vben.pro',
+    date: '2024',
     enable: true,
     icp: '',
     icpLink: '',

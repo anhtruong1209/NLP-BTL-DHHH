@@ -91,11 +91,7 @@ function setupAccessGuard(router: Router) {
     // 生成路由表
     // 当前登录用户拥有的角色标识列表
     const userInfo = userStore.userInfo || (await authStore.fetchUserInfo());
-    // Convert role (0 or 1) to roles array for compatibility with generateAccess
-    const userRole = (userInfo as any)?.role;
-    const userRoles = userRole !== undefined && userRole !== null 
-      ? (userRole === 0 ? ['admin'] : ['user']) // 0 = admin, 1 = user
-      : (userInfo.roles ?? []); // Fallback to old roles array if exists
+    const userRoles = userInfo.roles ?? [];
 
     // 生成菜单和路由
     const { accessibleMenus, accessibleRoutes } = await generateAccess({

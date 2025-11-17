@@ -1,7 +1,7 @@
 import { eventHandler, getQuery } from 'h3';
-import { verifyAccessToken } from '../../../utils/jwt-utils';
-import { getRolesCollection, getUsersCollection } from '../../../utils/mongodb';
-import { unAuthorizedResponse, usePageResponseSuccess } from '../../../utils/response';
+import { verifyAccessToken } from '~/utils/jwt-utils';
+import { getUsersCollection } from '~/utils/mongodb';
+import { unAuthorizedResponse, usePageResponseSuccess } from '~/utils/response';
 
 export default eventHandler(async (event) => {
   const userinfo = verifyAccessToken(event);
@@ -68,25 +68,11 @@ export default eventHandler(async (event) => {
       .limit(pageSizeNum)
       .toArray();
 
-    // Lấy danh sách roles để map role code với role name
-    const rolesCollection = await getRolesCollection();
-    const roles = await rolesCollection.find({}).toArray();
-    const roleMap = new Map();
-    roles.forEach((role) => {
-      roleMap.set(role.code, { name: role.name, code: role.code });
-    });
-
-    // Chuyển đổi _id thành id và loại bỏ _id và password, thêm roleName
-    const listData = users.map(({ _id, password, ...user }) => {
-      const roleCode = user.role?.toString() || user.role;
-      const roleInfo = roleMap.get(roleCode);
-      return {
+    // Chuyển đổi _id thành id và loại bỏ _id và password
+    const listData = users.map(({ _id, password, ...user }) => ({
       ...user,
       id: user.id || _id?.toString(),
-        roleName: roleInfo?.name || '',
-        roleCode: roleCode,
-      };
-    });
+    }));
 
     return {
       code: 0,

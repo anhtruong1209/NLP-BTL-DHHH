@@ -128,7 +128,6 @@ watch(
   }),
   async ({ enable, content }) => {
     if (enable) {
-      console.log(userStore.userInfo);
       await updateWatermark({
         content:
           content ||

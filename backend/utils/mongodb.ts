@@ -7,13 +7,6 @@ let db: Db | null = null;
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://admin:admin@warrantly-verhical.hsdx3um.mongodb.net/?appName=warrantly-verhical';
 const DB_NAME = process.env.MONGODB_DB_NAME || 'chatbot-nlp-vmu';
 
-/**
- * User role types:
- * 0 = Admin
- * 1 = User
- */
-export type UserRole = 0 | 1;
-
 export interface SystemUser {
   _id?: string;
   id: string;
@@ -22,7 +15,7 @@ export interface SystemUser {
   realName: string;
   email?: string;
   phone?: string;
-  role: UserRole; // 0 = admin, 1 = user
+  roles: string[];
   status: 0 | 1;
   createTime?: string;
   remark?: string;
@@ -255,45 +248,12 @@ async function initializeDefaultUsers() {
       
       if (adminUser && normalUser) {
         console.log('✅ Default users already exist');
-        // Migrate old roles format to new role format
-        // If user has old roles array, migrate to new role number
-        if (adminUser.roles && Array.isArray(adminUser.roles)) {
-          console.log('⚠️ Migrating admin user from old roles format to new role format...');
+        // Ensure admin user has correct roles
+        if (!adminUser.roles || !adminUser.roles.includes('admin')) {
+          console.log('⚠️ Admin user missing admin role, updating...');
           await usersCollection.updateOne(
             { username: 'admin' },
-            { 
-              $set: { role: 0 }, // 0 = admin
-              $unset: { roles: '' } // Remove old roles field
-            }
-          );
-        } else if (adminUser.role === undefined || adminUser.role === null) {
-          console.log('⚠️ Admin user missing role, setting to admin (0)...');
-          await usersCollection.updateOne(
-            { username: 'admin' },
-            { 
-              $set: { role: 0 }, // 0 = admin
-              $unset: { roles: '' } // Remove old roles field if exists
-            }
-          );
-        }
-        // Migrate normal user
-        if (normalUser.roles && Array.isArray(normalUser.roles)) {
-          console.log('⚠️ Migrating normal user from old roles format to new role format...');
-          await usersCollection.updateOne(
-            { username: 'user' },
-            { 
-              $set: { role: 1 }, // 1 = user
-              $unset: { roles: '' } // Remove old roles field
-            }
-          );
-        } else if (normalUser.role === undefined || normalUser.role === null) {
-          console.log('⚠️ Normal user missing role, setting to user (1)...');
-          await usersCollection.updateOne(
-            { username: 'user' },
-            { 
-              $set: { role: 1 }, // 1 = user
-              $unset: { roles: '' } // Remove old roles field if exists
-            }
+            { $set: { roles: ['super', 'admin'] } }
           );
         }
         return; // Đã có user, không cần tạo lại
@@ -316,7 +276,7 @@ async function initializeDefaultUsers() {
         realName: 'Administrator',
         email: 'admin@chatbot-nlp-vmu.com',
         phone: '0123456789',
-        role: 0, // 0 = admin
+        roles: ['super', 'admin'],
         status: 1,
         createTime: new Date().toISOString(),
         remark: 'Default admin account',
@@ -329,7 +289,7 @@ async function initializeDefaultUsers() {
         realName: 'User',
         email: 'user@chatbot-nlp-vmu.com',
         phone: '0987654321',
-        role: 1, // 1 = user
+        roles: ['user'],
         status: 1,
         createTime: new Date().toISOString(),
         remark: 'Default user account',

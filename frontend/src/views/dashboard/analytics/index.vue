@@ -25,8 +25,8 @@ import AnalyticsResponseTime from './analytics-response-time.vue';
 
 const userStore = useUserStore();
 const isAdmin = computed(() => {
-  const userRole = (userStore.userInfo as any)?.role;
-  return userRole === 0; // 0 = admin
+  const roles = userStore.userInfo?.roles || [];
+  return roles.some(r => r === 'admin' || r === 'super');
 });
 
 const loading = ref(false);

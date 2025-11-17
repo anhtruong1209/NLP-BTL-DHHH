@@ -14,7 +14,7 @@ defineOptions({
 withDefaults(defineProps<Props>(), {
   companyName: 'ChatBot-NLP-VMU',
   companySiteLink: '',
-  date: '2025',
+  date: '2024',
   icp: '',
   icpLink: '',
 });

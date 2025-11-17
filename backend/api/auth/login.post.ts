@@ -137,39 +137,12 @@ export default defineEventHandler(async (event) => {
 
     console.log('✅ Login successful for user:', username);
 
-    // Migrate old roles format to new role format if needed
-    let userRole: 0 | 1;
-    const dbUser = findUser as any; // Type assertion for migration
-    if (dbUser.role !== undefined && dbUser.role !== null) {
-      userRole = dbUser.role === 0 ? 0 : 1; // Ensure it's 0 or 1
-    } else if (dbUser.roles && Array.isArray(dbUser.roles)) {
-      // Migrate from old format: if has 'admin' or 'super', set to 0 (admin), else 1 (user)
-      userRole = dbUser.roles.some((r: string) => r === 'admin' || r === 'super') ? 0 : 1;
-      // Update DB to new format
-      await usersCollection.updateOne(
-        { _id: findUser._id },
-        { 
-          $set: { role: userRole },
-          $unset: { roles: '' }
-        }
-      );
-      console.log('✅ Migrated user role from old format to new format:', userRole);
-    } else {
-      userRole = 1; // Default to user
-      // Update DB if missing
-      await usersCollection.updateOne(
-        { _id: findUser._id },
-        { $set: { role: userRole } }
-      );
-      console.log('✅ Set default role for user:', userRole);
-    }
-
-    // Chuyển đổi sang format UserInfo cho JWT (compatible with old interface)
-    const userInfo: any = {
+    // Chuyển đổi sang format UserInfo cho JWT
+    const userInfo = {
       id: Number(findUser.id.replace(/\D/g, '')) || 0,
       username: findUser.username,
       realName: findUser.realName,
-      role: userRole, // Use role (number) instead of roles (array)
+      roles: findUser.roles,
       homePath: findUser.homePath,
     };
 

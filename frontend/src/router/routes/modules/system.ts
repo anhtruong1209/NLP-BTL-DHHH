@@ -8,7 +8,7 @@ const routes: RouteRecordRaw[] = [
       icon: 'ion:settings-outline',
       order: 9997,
       title: $t('system.title'),
-      roles: ['admin'], // Only admin (role === 0) can access
+      roles: ['admin', 'super'], // Only admin can access
     },
     name: 'System',
     path: '/system',

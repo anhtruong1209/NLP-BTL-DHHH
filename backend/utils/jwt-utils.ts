@@ -54,20 +54,9 @@ export async function verifyAccessToken(
       const usersCollection = await getUsersCollection();
       const dbUser = await usersCollection.findOne({ username, status: 1 });
       if (dbUser) {
-        // Migrate old roles format to new role format if needed
-        let userRole: number;
-        if (dbUser.role !== undefined && dbUser.role !== null) {
-          userRole = dbUser.role;
-        } else if (dbUser.roles && Array.isArray(dbUser.roles)) {
-          // Migrate from old format
-          userRole = dbUser.roles.some((r: string) => r === 'admin' || r === 'super') ? 0 : 1;
-        } else {
-          userRole = 1; // Default to user
-        }
-        
         console.log('[JWT] Found user in MongoDB:', {
           username: dbUser.username,
-          role: userRole,
+          roles: dbUser.roles,
           id: dbUser.id,
         });
         const { password: _pwd, ...userinfo } = dbUser;
@@ -75,9 +64,9 @@ export async function verifyAccessToken(
           id: Number(dbUser.id.replace(/\D/g, '')) || 0,
           username: dbUser.username,
           realName: dbUser.realName,
-          role: userRole, // Return role as number
+          roles: dbUser.roles,
           homePath: dbUser.homePath,
-        } as any; // Type assertion for compatibility
+        } as Omit<UserInfo, 'password'>;
       } else {
         console.warn('[JWT] User not found in MongoDB:', username);
       }
@@ -85,18 +74,13 @@ export async function verifyAccessToken(
       console.warn('[JWT] MongoDB lookup failed, falling back to MOCK_USERS:', dbError);
     }
     
-    // Fallback to MOCK_USERS (migrate old format)
+    // Fallback to MOCK_USERS
     const user = MOCK_USERS.find((item) => item.username === username);
     if (!user) {
       return null;
     }
-    const { password: _pwd, roles, ...userinfo } = user;
-    // Migrate roles to role
-    const userRole = roles?.some((r: string) => r === 'admin' || r === 'super') ? 0 : 1;
-    return {
-      ...userinfo,
-      role: userRole,
-    } as any;
+    const { password: _pwd, ...userinfo } = user;
+    return userinfo;
   } catch {
     return null;
   }

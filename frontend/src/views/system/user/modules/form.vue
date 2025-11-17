@@ -6,7 +6,6 @@ import { computed, nextTick, ref } from 'vue';
 import { useVbenDrawer } from '@vben/common-ui';
 
 import { useVbenForm } from '#/adapter/form';
-import { getRoleList } from '#/api/system/role';
 import { createUser, updateUser } from '#/api/system/user';
 import { $t } from '#/locales';
 
@@ -15,10 +14,9 @@ import { useFormSchema } from '../data';
 const emits = defineEmits(['success']);
 
 const formData = ref<SystemUserApi.SystemUser>();
-const roleOptions = ref<Array<{ label: string; value: string }>>([]);
 
 const [Form, formApi] = useVbenForm({
-  schema: useFormSchema(roleOptions),
+  schema: useFormSchema(),
   showDefaultActions: false,
 });
 
@@ -51,11 +49,6 @@ const [Drawer, drawerApi] = useVbenDrawer({
         id.value = undefined;
       }
 
-      // Load roles if not already loaded
-      if (roleOptions.value.length === 0) {
-        await loadRoles();
-      }
-
       // Wait for Vue to flush DOM updates (form fields mounted)
       await nextTick();
       if (data) {
@@ -64,29 +57,6 @@ const [Drawer, drawerApi] = useVbenDrawer({
     }
   },
 });
-
-async function loadRoles() {
-  try {
-    const res = await getRoleList({ page: 1, pageSize: 100 });
-    // Response structure: { code: 0, data: { items: [...], total: number } }
-    const roles = Array.isArray(res) 
-      ? res 
-      : (res as any)?.data?.items || [];
-    roleOptions.value = roles.map((role: any) => ({
-      label: role.name,
-      value: role.code,
-    }));
-    // Update form schema with new role options
-    formApi.updateSchema({
-      fieldName: 'role',
-      componentProps: {
-        options: roleOptions.value,
-      },
-    });
-  } catch (error) {
-    console.error('Error loading roles:', error);
-  }
-}
 
 const getDrawerTitle = computed(() => {
   return formData.value?.id
