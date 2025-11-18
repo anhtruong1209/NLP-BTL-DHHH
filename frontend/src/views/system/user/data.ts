@@ -9,21 +9,34 @@ export function useFormSchema(): VbenFormSchema[] {
   return [
     {
       component: 'Input',
-      fieldName: 'username',
-      label: $t('system.user.username'),
-      rules: 'required',
+      fieldName: 'email',
+      label: $t('system.user.email'),
+      rules: 'required|email',
+    },
+    {
+      component: 'Input',
+      fieldName: 'password',
+      label: 'Mật khẩu',
+      componentProps: {
+        type: 'password',
+        placeholder: 'Chỉ cần nhập khi tạo mới',
+      },
+      rules: (formData: any) => {
+        // Chỉ required khi tạo mới (không có id)
+        if (!formData?.id) {
+          return 'required|min:6';
+        }
+        return '';
+      },
     },
     {
       component: 'Input',
       fieldName: 'realName',
       label: $t('system.user.realName'),
       rules: 'required',
-    },
-    {
-      component: 'Input',
-      fieldName: 'email',
-      label: $t('system.user.email'),
-      rules: 'email',
+      componentProps: {
+        placeholder: 'Họ và tên',
+      },
     },
     {
       component: 'Input',

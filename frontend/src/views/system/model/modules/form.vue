@@ -43,7 +43,7 @@ const [Drawer, drawerApi] = useVbenDrawer({
 
       if (data) {
         formData.value = data;
-        modelId.value = data.modelId;
+        modelId.value = data.modelId || String(data.id || '');
       } else {
         modelId.value = undefined;
       }

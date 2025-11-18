@@ -103,11 +103,15 @@ setupVbenVxeTable({
     vxeUI.renderer.add('CellSwitch', {
       renderTableDefault({ attrs, props }, { column, row }) {
         const loadingKey = `__loading_${column.field}`;
+        // Nếu props có checkedValue/unCheckedValue, dùng giá trị đó, nếu không dùng default
+        const defaultCheckedValue = props?.checkedValue !== undefined ? props.checkedValue : true;
+        const defaultUnCheckedValue = props?.unCheckedValue !== undefined ? props.unCheckedValue : false;
+        
         const finallyProps = {
           checkedChildren: $t('common.enabled'),
-          checkedValue: 1,
+          checkedValue: defaultCheckedValue,
           unCheckedChildren: $t('common.disabled'),
-          unCheckedValue: 0,
+          unCheckedValue: defaultUnCheckedValue,
           ...props,
           checked: row[column.field],
           loading: row[loadingKey] ?? false,

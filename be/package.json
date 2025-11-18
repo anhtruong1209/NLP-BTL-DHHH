@@ -1,0 +1,60 @@
+{
+  "name": "ai-composer-be",
+  "version": "1.0.0",
+  "description": "Backend API cho ứng dụng Vishipel - Bình dân học vụ số",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js",
+    "test": "mocha tests/**/*.test.js --timeout 10000",
+    "deploy:iis": "npm ci --production && npm prune --production",
+    "pm2:start": "pm2 start ecosystem.config.js",
+    "pm2:start:prod": "pm2 start ecosystem.config.js --env production",
+    "pm2:stop": "pm2 stop ecosystem.config.js",
+    "pm2:restart": "pm2 restart ecosystem.config.js",
+    "pm2:logs": "pm2 logs",
+    "pm2:monitor": "pm2 monit"
+  },
+  "keywords": [
+    "ai",
+    "composer",
+    "api",
+    "express",
+    "sql-server"
+  ],
+  "author": "VISHIPEL Team",
+  "license": "ISC",
+  "dependencies": {
+    "@google/generative-ai": "^0.24.1",
+    "axios": "^1.9.0",
+    "bcryptjs": "^2.4.3",
+    "cookie-parser": "^1.4.6",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "express-rate-limit": "^7.1.1",
+    "fs": "^0.0.1-security",
+    "fs-extra": "^11.3.0",
+    "helmet": "^7.0.0",
+    "hpp": "^0.2.3",
+    "jsonwebtoken": "^9.0.2",
+    "morgan": "^1.10.0",
+    "mssql": "^9.2.0",
+    "multer": "^1.4.5-lts.1",
+    "path": "^0.12.7",
+    "pm2": "^6.0.6",
+    "sequelize": "^6.37.7",
+    "socket.io": "^4.8.1",
+    "validator": "^13.11.0",
+    "xss-clean": "^0.1.4"
+  },
+  "devDependencies": {
+    "chai": "^4.3.7",
+    "mocha": "^10.2.0",
+    "nodemon": "^2.0.22",
+    "supertest": "^6.3.3"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  }
+}

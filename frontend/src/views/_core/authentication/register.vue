@@ -2,25 +2,47 @@
 import type { VbenFormSchema } from '@vben/common-ui';
 import type { Recordable } from '@vben/types';
 
-import { computed, h, ref } from 'vue';
+import { computed, h } from 'vue';
 
 import { AuthenticationRegister, z } from '@vben/common-ui';
 import { $t } from '@vben/locales';
+import { message } from 'ant-design-vue';
+
+import { useAuthStore } from '#/store';
 
 defineOptions({ name: 'Register' });
 
-const loading = ref(false);
+const authStore = useAuthStore();
 
 const formSchema = computed((): VbenFormSchema[] => {
   return [
     {
       component: 'VbenInput',
       componentProps: {
-        placeholder: $t('authentication.usernameTip'),
+        placeholder: 'Nhập email của bạn',
+        type: 'email',
       },
-      fieldName: 'username',
-      label: $t('authentication.username'),
-      rules: z.string().min(1, { message: $t('authentication.usernameTip') }),
+      fieldName: 'email',
+      label: 'Email',
+      rules: z.string().email({ message: 'Email không hợp lệ' }).min(1, { message: 'Vui lòng nhập email' }),
+    },
+    {
+      component: 'VbenInput',
+      componentProps: {
+        placeholder: 'Nhập họ của bạn',
+      },
+      fieldName: 'firstName',
+      label: 'Họ',
+      rules: z.string().optional(),
+    },
+    {
+      component: 'VbenInput',
+      componentProps: {
+        placeholder: 'Nhập tên của bạn',
+      },
+      fieldName: 'lastName',
+      label: 'Tên',
+      rules: z.string().optional(),
     },
     {
       component: 'VbenInputPassword',
@@ -81,16 +103,28 @@ const formSchema = computed((): VbenFormSchema[] => {
   ];
 });
 
-function handleSubmit(value: Recordable<any>) {
-  // eslint-disable-next-line no-console
-  console.log('register submit:', value);
+async function handleSubmit(value: Recordable<any>) {
+  try {
+    await authStore.authRegister(value);
+    // authRegister sẽ tự động redirect sau khi đăng ký thành công
+  } catch (error: any) {
+    console.error('Register failed:', error);
+    const errorMessage = error?.response?.data?.message || error?.message || 'Đăng ký thất bại. Vui lòng thử lại.';
+    
+    // Kiểm tra nếu email đã tồn tại
+    if (errorMessage.includes('already in use') || errorMessage.includes('Email already')) {
+      message.error('Email này đã được sử dụng. Vui lòng chọn email khác.');
+    } else {
+      message.error(errorMessage);
+    }
+  }
 }
 </script>
 
 <template>
   <AuthenticationRegister
     :form-schema="formSchema"
-    :loading="loading"
+    :loading="authStore.registerLoading"
     @submit="handleSubmit"
   />
 </template>

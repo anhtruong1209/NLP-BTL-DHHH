@@ -43,7 +43,8 @@ const formSchema = computed((): VbenFormSchema[] => {
     {
       component: 'VbenInput',
       componentProps: {
-        placeholder: $t('authentication.usernameTip'),
+        placeholder: 'Nhập email của bạn',
+        type: 'email',
       },
       dependencies: {
         trigger(values, form) {
@@ -54,16 +55,16 @@ const formSchema = computed((): VbenFormSchema[] => {
             if (findUser) {
               form.setValues({
                 password: 'admin@123',
-                username: findUser.value,
+                email: findUser.value === 'admin' ? 'admin@example.com' : 'user@example.com',
               });
             }
           }
         },
         triggerFields: ['selectAccount'],
       },
-      fieldName: 'username',
-      label: $t('authentication.username'),
-      rules: z.string().min(1, { message: $t('authentication.usernameTip') }),
+      fieldName: 'email',
+      label: 'Email',
+      rules: z.string().email({ message: 'Email không hợp lệ' }).min(1, { message: 'Vui lòng nhập email' }),
     },
     {
       component: 'VbenInputPassword',

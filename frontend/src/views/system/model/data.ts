@@ -7,88 +7,39 @@ export function useFormSchema(): VbenFormSchema[] {
     {
       component: 'Input',
       fieldName: 'name',
-      label: 'Model Name',
+      label: 'Tên Model',
       rules: 'required',
-    },
-    {
-      component: 'Select',
       componentProps: {
-        options: [
-          { label: 'Gemini', value: 'gemini' },
-          { label: 'Local', value: 'local' },
-        ],
+        placeholder: 'Ví dụ: Gemini 2.5 Flash API Key',
       },
-      fieldName: 'type',
-      label: 'Type',
-      rules: 'required',
     },
     {
       component: 'Input',
-      fieldName: 'modelKey',
-      label: 'Model Key',
+      fieldName: 'model',
+      label: 'Model Name',
       rules: 'required',
+      componentProps: {
+        placeholder: 'Ví dụ: gemini-2.5-flash',
+      },
     },
     {
       component: 'Input',
       fieldName: 'apiKey',
       label: 'API Key',
+      rules: 'required',
       componentProps: {
         type: 'password',
+        placeholder: 'Nhập API key từ Google AI Studio',
       },
-    },
-    {
-      component: 'Input',
-      fieldName: 'localPath',
-      label: 'Local Path',
-    },
-    {
-      component: 'Select',
-      componentProps: {
-        options: [
-          { label: 'Transformers', value: 'transformers' },
-          { label: 'GGUF', value: 'gguf' },
-          { label: 'ONNX', value: 'onnx' },
-        ],
-      },
-      fieldName: 'localType',
-      label: 'Local Type',
-    },
-    {
-      component: 'InputNumber',
-      fieldName: 'defaultMaxTokens',
-      label: 'Default Max Tokens',
-      componentProps: {
-        min: 1,
-        max: 4096,
-      },
-      defaultValue: 2048,
-    },
-    {
-      component: 'InputNumber',
-      fieldName: 'defaultTemperature',
-      label: 'Default Temperature',
-      componentProps: {
-        min: 0,
-        max: 2,
-        step: 0.1,
-      },
-      defaultValue: 0.8,
-    },
-    {
-      component: 'InputNumber',
-      fieldName: 'defaultTopP',
-      label: 'Default Top P',
-      componentProps: {
-        min: 0,
-        max: 1,
-        step: 0.01,
-      },
-      defaultValue: 0.95,
     },
     {
       component: 'Textarea',
       fieldName: 'description',
-      label: 'Description',
+      label: 'Mô tả',
+      componentProps: {
+        placeholder: 'Mô tả về API key này',
+        rows: 3,
+      },
     },
     {
       component: 'RadioGroup',
@@ -112,19 +63,18 @@ export function useGridFormSchema(): VbenFormSchema[] {
     {
       component: 'Input',
       fieldName: 'name',
-      label: 'Model Name',
+      label: 'Tên Model',
+      componentProps: {
+        placeholder: 'Tìm theo tên',
+      },
     },
     {
-      component: 'Select',
+      component: 'Input',
+      fieldName: 'model',
+      label: 'Model',
       componentProps: {
-        allowClear: true,
-        options: [
-          { label: 'Gemini', value: 'gemini' },
-          { label: 'Local', value: 'local' },
-        ],
+        placeholder: 'Tìm theo model name',
       },
-      fieldName: 'type',
-      label: 'Type',
     },
     {
       component: 'Select',
@@ -148,36 +98,27 @@ export function useColumns<T = AIModel>(
   return [
     {
       field: 'name',
-      title: 'Model Name',
+      title: 'Tên',
       width: 200,
     },
     {
-      field: 'type',
-      title: 'Type',
-      width: 100,
+      field: 'model',
+      title: 'Model',
+      width: 180,
+    },
+    {
+      field: 'description',
+      title: 'Mô tả',
+      minWidth: 200,
+    },
+    {
       cellRender: {
-        name: 'CellTag',
-        attrs: {
-          options: [
-            { label: 'Gemini', value: 'gemini', color: 'blue' },
-            { label: 'Local', value: 'local', color: 'green' },
-          ],
+        attrs: { 
+          beforeChange: onStatusChange,
+          // CellSwitch hỗ trợ boolean values
+          checkedValue: true,
+          unCheckedValue: false,
         },
-      },
-    },
-    {
-      field: 'modelKey',
-      title: 'Model Key',
-      width: 200,
-    },
-    {
-      field: 'provider',
-      title: 'Provider',
-      width: 150,
-    },
-    {
-      cellRender: {
-        attrs: { beforeChange: onStatusChange },
         name: onStatusChange ? 'CellSwitch' : 'CellTag',
       },
       field: 'enabled',
@@ -185,30 +126,53 @@ export function useColumns<T = AIModel>(
       width: 100,
     },
     {
-      field: 'defaultMaxTokens',
-      title: 'Max Tokens',
+      field: 'usage_count',
+      title: 'Số lần dùng',
       width: 120,
     },
     {
-      field: 'defaultTemperature',
-      title: 'Temperature',
-      width: 120,
-    },
-    {
-      field: 'defaultTopP',
-      title: 'Top P',
-      width: 100,
+      field: 'last_used',
+      title: 'Lần cuối dùng',
+      width: 180,
+      formatter: ({ cellValue }) => {
+        if (!cellValue) return '-';
+        try {
+          const date = new Date(cellValue);
+          if (isNaN(date.getTime())) return '-';
+          return date.toLocaleString('vi-VN', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+          });
+        } catch {
+          return '-';
+        }
+      },
     },
     {
       field: 'createdAt',
-      title: 'Created At',
-      width: 200,
-      formatter: 'formatDateTime',
-    },
-    {
-      field: 'description',
-      minWidth: 200,
-      title: 'Description',
+      title: 'Ngày tạo',
+      width: 180,
+      formatter: ({ cellValue }) => {
+        if (!cellValue) return '-';
+        try {
+          const date = new Date(cellValue);
+          if (isNaN(date.getTime())) return '-';
+          return date.toLocaleString('vi-VN', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+          });
+        } catch {
+          return '-';
+        }
+      },
     },
     {
       align: 'center',

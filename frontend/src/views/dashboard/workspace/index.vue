@@ -5,7 +5,6 @@ import { useUserStore } from '@vben/stores';
 import { message as antdMessage } from 'ant-design-vue';
 import {
   Button,
-  Input,
   ScrollArea,
   Select,
   SelectContent,
@@ -15,29 +14,30 @@ import {
   Textarea,
 } from '@vben-core/shadcn-ui';
 
-import { ragChat, ragMessages, ragSessions } from '#/api/rag';
-import { getAvailableModels, type AIModel } from '#/api/models';
+import {
+  getMyChats,
+  getChatMessages,
+  processAIMessage,
+  getAvailableModels,
+  type Chat,
+  type ChatMessage,
+} from '#/api/chat';
 import { useAuthStore } from '#/store';
 
 const userStore = useUserStore();
 const authStore = useAuthStore();
-
-const collection = ref('default');
-const systemPrompt = ref('');
-const topK = ref(5);
 
 const selectedModel = ref('');
 const availableModels = ref<Array<{ value: string; label: string }>>([]);
 const loadingModels = ref(false);
 const loadingSessions = ref(false);
 
-const sessionId = ref('');
-const sessions = ref<any[]>([]);
-const messages = ref<
-  Array<{ role: 'user' | 'assistant'; content: string; contextChunks?: any[]; createdAt?: string }>
->([]);
+const chatId = ref<number | null>(null);
+const chats = ref<Chat[]>([]);
+const messages = ref<ChatMessage[]>([]);
 const input = ref('');
 const sending = ref(false);
+const lastSendAt = ref(0);
 const messagesLoading = ref(false);
 
 const suggestions = [
@@ -48,11 +48,11 @@ const suggestions = [
   'Liệt kê những bước xây dựng chatbot RAG.',
 ];
 
-const currentSessionTitle = computed(() => {
-  if (!sessionId.value) {
+const currentChatTitle = computed(() => {
+  if (!chatId.value) {
     return 'Cuộc trò chuyện mới';
   }
-  const current = sessions.value.find((s) => s.sessionId === sessionId.value);
+  const current = chats.value.find((c) => c.id === chatId.value);
   return current?.title || 'Cuộc trò chuyện';
 });
 
@@ -61,10 +61,18 @@ const currentModelLabel = computed(() => {
   return model?.label || 'Chưa chọn model';
 });
 
-const sortedSessions = computed(() =>
-  [...sessions.value].sort(
-    (a, b) => new Date(b.updatedAt || 0).getTime() - new Date(a.updatedAt || 0).getTime(),
-  ),
+const sortedChats = computed(() =>
+  [...chats.value].sort((a, b) => {
+    try {
+      const dateA = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
+      const dateB = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
+      if (isNaN(dateA)) return 1;
+      if (isNaN(dateB)) return -1;
+      return dateB - dateA;
+    } catch {
+      return 0;
+    }
+  }),
 );
 
 async function ensureUserInfo() {
@@ -80,86 +88,131 @@ async function ensureUserInfo() {
 async function loadModels() {
   loadingModels.value = true;
   try {
-    const res: any = await getAvailableModels();
-    const models: AIModel[] = Array.isArray(res?.models) ? res.models : res?.data?.models ?? [];
-    const enabled = models.map((m) => ({
-      value: m.modelKey || (m as any).payloadModel || m.modelId,
-      label: m.name,
-    }));
-    availableModels.value = enabled;
-    if (enabled.length > 0 && !selectedModel.value) {
-      selectedModel.value = enabled[0]?.value ?? 'gemini-2.5-flash';
+    const res = await getAvailableModels();
+    console.log('[Workspace] getAvailableModels response:', res);
+    
+    // getAvailableModels đã normalize response về { status: 'success', models: [...] }
+    // Và luôn trả về models (từ API hoặc default), không throw error
+    const models = res?.models || [];
+    console.log('[Workspace] Extracted models:', models);
+    
+    availableModels.value = models.length > 0 ? models : [{ value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash' }];
+    
+    if (availableModels.value.length > 0 && !selectedModel.value) {
+      selectedModel.value = availableModels.value[0]?.value ?? 'gemini-2.5-flash';
+      console.log('[Workspace] Selected model:', selectedModel.value);
     }
-  } catch (error) {
-    console.error('[Workspace] Load models failed:', error);
-    availableModels.value = [{ value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash' }];
-    selectedModel.value = 'gemini-2.5-flash';
-    antdMessage.warning('Không thể tải model, sử dụng mặc định.');
+  } catch (error: any) {
+    // getAvailableModels không nên throw error, nhưng nếu có thì xử lý
+    console.error('[Workspace] Load models failed (unexpected):', error);
+    // Nếu không có model nào, dùng default
+    if (availableModels.value.length === 0) {
+      availableModels.value = [{ value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash' }];
+      selectedModel.value = 'gemini-2.5-flash';
+    }
   } finally {
     loadingModels.value = false;
   }
 }
 
-async function refreshSessions() {
+async function refreshChats() {
   loadingSessions.value = true;
   try {
-    const res: any = await ragSessions();
-    const payload = res?.data ?? res;
-    sessions.value = payload?.sessions ?? [];
-    if (!sessionId.value && sessions.value.length > 0) {
-      sessionId.value = sessions.value[0].sessionId;
-      await loadMessagesForSession(sessionId.value);
+    // getMyChats đã normalize response về array
+    const chatsList = await getMyChats();
+    console.log('[Workspace] getMyChats response:', chatsList);
+    
+    // Kiểm tra nếu có data hợp lệ
+    if (Array.isArray(chatsList) && chatsList.length > 0) {
+      chats.value = chatsList;
+      console.log('[Workspace] Set chats.value:', chats.value);
+      
+      // Nếu có chat và chưa chọn chat nào, chọn chat đầu tiên
+      if (!chatId.value && chats.value.length > 0 && chats.value[0]) {
+        chatId.value = chats.value[0].id;
+        await loadMessagesForChat(chats.value[0].id);
+      }
+    } else {
+      // Không có chat hoặc data không hợp lệ
+      chats.value = [];
+      console.log('[Workspace] No chats found or invalid data');
     }
-  } catch (error) {
-    console.error('[Workspace] Load sessions failed:', error);
-    antdMessage.error('Không tải được danh sách cuộc trò chuyện.');
-    sessions.value = [];
+  } catch (error: any) {
+    // Chỉ log error nếu thực sự là lỗi (không có data hợp lệ)
+    // Nếu error nhưng có data trong error.response.data, getMyChats đã xử lý rồi
+    if (error?.response?.status && error.response.status >= 400) {
+      console.error('[Workspace] Load chats failed with HTTP error:', error);
+      antdMessage.error('Không tải được danh sách cuộc trò chuyện.');
+      chats.value = [];
+    } else {
+      // Có thể là network error hoặc lỗi khác
+      console.warn('[Workspace] Load chats failed (non-HTTP error):', error);
+      chats.value = [];
+    }
   } finally {
     loadingSessions.value = false;
   }
 }
 
-async function loadMessagesForSession(id?: string) {
+async function loadMessagesForChat(id?: number) {
   if (!id) {
     messages.value = [];
     return;
   }
   messagesLoading.value = true;
   try {
-    const res: any = await ragMessages(id, 500);
-    const payload = res?.data ?? res;
-    messages.value = payload?.messages ?? [];
-  } catch (error) {
-    console.error('[Workspace] Load messages failed:', error);
-    antdMessage.error('Không tải được lịch sử cuộc trò chuyện.');
-    messages.value = [];
+    // getChatMessages đã normalize response về array
+    const messagesList = await getChatMessages(id);
+    console.log('[Workspace] getChatMessages response:', messagesList);
+    
+    // Kiểm tra nếu có data hợp lệ
+    if (Array.isArray(messagesList)) {
+      messages.value = messagesList;
+      console.log('[Workspace] Set messages.value:', messages.value);
+    } else {
+      messages.value = [];
+      console.log('[Workspace] Invalid messages data, setting empty array');
+    }
+  } catch (error: any) {
+    // Chỉ log error nếu thực sự là lỗi (không có data hợp lệ)
+    // Nếu error nhưng có data trong error.response.data, getChatMessages đã xử lý rồi
+    if (error?.response?.status && error.response.status >= 400) {
+      console.error('[Workspace] Load messages failed with HTTP error:', error);
+      antdMessage.error('Không tải được lịch sử cuộc trò chuyện.');
+      messages.value = [];
+    } else {
+      // Có thể là network error hoặc lỗi khác
+      console.warn('[Workspace] Load messages failed (non-HTTP error):', error);
+      messages.value = [];
+    }
   } finally {
     messagesLoading.value = false;
     scrollToBottom();
   }
 }
 
-async function selectSession(id: string) {
-  if (sessionId.value === id) return;
-  sessionId.value = id;
-  await loadMessagesForSession(id);
+async function selectChat(id: number) {
+  if (chatId.value === id) return;
+  chatId.value = id;
+  await loadMessagesForChat(id);
 }
 
-function createNewSession() {
-  sessionId.value = '';
+function createNewChat() {
+  chatId.value = null;
   messages.value = [];
   input.value = '';
 }
 
-function addMessage(role: 'user' | 'assistant', content: string, extra?: Record<string, any>) {
+function addMessageToUI(role: 'user' | 'assistant', content: string) {
   messages.value = [
     ...messages.value,
     {
+      id: Date.now(),
+      chat_id: chatId.value || 0,
       role,
       content,
       createdAt: new Date().toISOString(),
-      ...(extra || {}),
-    },
+    } as ChatMessage,
   ];
 }
 
@@ -184,56 +237,100 @@ async function send(messageOverride?: string) {
     return;
   }
 
+  const now = Date.now();
+  if (now - lastSendAt.value < 3000) {
+    antdMessage.warning('Hãy chờ vài giây rồi gửi câu tiếp theo nhé.');
+    return;
+  }
   sending.value = true;
+  lastSendAt.value = now;
   if (!messageOverride) {
     input.value = '';
   }
-  addMessage('user', content);
+  addMessageToUI('user', content);
   scrollToBottom();
 
+  const startedAt = Date.now();
   try {
-    const res: any = await ragChat({
-      sessionId: sessionId.value || undefined,
+    // Chuẩn bị history từ messages hiện tại
+    const history = messages.value
+      .filter((m) => m.role === 'user' || m.role === 'assistant')
+      .slice(-10) // Lấy 10 tin nhắn gần nhất
+      .map((m) => ({
+        role: m.role === 'assistant' ? 'assistant' : 'user',
+        content: m.content,
+      }));
+
+    const res = await processAIMessage({
       message: content,
+      chatId: chatId.value || undefined,
       model: selectedModel.value,
-      topK: topK.value,
-      collection: collection.value || 'default',
-      historyLimit: 10,
-      systemPrompt: systemPrompt.value || undefined,
+      history,
+      useGoogleSearch: false,
     });
-    const data = res?.data ?? res;
-    if (!data?.ok) {
-      throw new Error(data?.error || 'Chat API trả về lỗi.');
+
+    console.log('[Workspace] processAIMessage response:', res);
+    
+    // baseRequestClient trả về axios response, nên res.data = { status: "success", data: {...} }
+    // Hoặc có thể res.data đã là { chat, userMessage, aiMessage } trực tiếp
+    let responseData: any = res.data;
+    
+    // Nếu có structure { status: "success", data: {...} }, lấy data.data
+    if (responseData && responseData.status === 'success' && responseData.data) {
+      responseData = responseData.data;
+    }
+    
+    console.log('[Workspace] Extracted data:', responseData);
+    
+    const data = responseData as { chat: Chat; userMessage: ChatMessage; aiMessage: ChatMessage };
+    
+    if (!data || !data.chat || !data.aiMessage) {
+      console.error('[Workspace] Invalid response structure:', res);
+      throw new Error('Chat API trả về dữ liệu không hợp lệ.');
     }
 
-    if (!sessionId.value && data.sessionId) {
-      sessionId.value = data.sessionId;
+    // Cập nhật chatId nếu là chat mới
+    if (!chatId.value && data.chat.id) {
+      chatId.value = data.chat.id;
     }
 
-    await refreshSessions();
+    // Cập nhật messages từ response
+    messages.value = [
+      ...messages.value.filter((m) => m.role === 'user' && m.content === content).length === 0
+        ? messages.value
+        : messages.value.slice(0, -1), // Xóa message user tạm nếu đã có trong response
+      data.userMessage,
+      data.aiMessage,
+    ];
 
-    addMessage('assistant', String(data.answer ?? '').trim() || '(Không có phản hồi)', {
-      contextChunks: data.context ?? [],
-    });
+    await refreshChats();
     scrollToBottom();
   } catch (error: any) {
     console.error('[Workspace] Send failed:', error);
-    messages.value = messages.value.filter((m, idx) => !(idx === messages.value.length - 1 && m.role === 'user'));
-    antdMessage.error(error?.message || 'Gửi tin nhắn thất bại.');
+    // Xóa message user nếu gửi thất bại
+    messages.value = messages.value.filter(
+      (m, idx) => !(idx === messages.value.length - 1 && m.role === 'user'),
+    );
+    antdMessage.error(error?.response?.data?.message || error?.message || 'Gửi tin nhắn thất bại.');
   } finally {
+    const elapsed = Date.now() - startedAt;
+    const remaining = 3000 - elapsed;
+    if (remaining > 0) {
+      await new Promise((resolve) => setTimeout(resolve, remaining));
+    }
     sending.value = false;
   }
 }
 
 function useSuggestion(text: string) {
+  // Chỉ đổ text vào ô nhập, để người dùng chỉnh sửa rồi tự gửi
   input.value = text;
-  send(text);
 }
 
 onMounted(async () => {
   await ensureUserInfo();
   await loadModels();
-  await refreshSessions();
+  await refreshChats();
 });
 </script>
 
@@ -241,7 +338,7 @@ onMounted(async () => {
   <div class="flex h-[calc(100vh-120px)] bg-background">
     <div class="w-64 border-r bg-muted/30 flex flex-col">
       <div class="p-3 border-b">
-        <Button class="w-full" :variant="!sessionId ? 'default' : 'outline'" @click="createNewSession">
+        <Button class="w-full" :variant="!chatId ? 'default' : 'outline'" @click="createNewChat">
           <span class="mr-2">+</span>
           Cuộc trò chuyện mới
         </Button>
@@ -249,17 +346,17 @@ onMounted(async () => {
       <ScrollArea class="flex-1">
         <div class="p-2 space-y-1">
           <div
-            v-if="!loadingSessions && sortedSessions.length === 0"
+            v-if="!loadingSessions && sortedChats.length === 0"
             class="text-center p-4 text-muted-foreground text-xs"
           >
             Chưa có cuộc trò chuyện nào
           </div>
           <div
-            v-for="item in sortedSessions"
-            :key="item.sessionId"
+            v-for="item in sortedChats"
+            :key="item.id"
             class="rounded-lg p-3 cursor-pointer transition-all"
-            :class="sessionId === item.sessionId ? 'bg-primary text-primary-foreground' : 'hover:bg-muted/60'"
-            @click="selectSession(item.sessionId)"
+            :class="chatId === item.id ? 'bg-primary text-primary-foreground' : 'hover:bg-muted/60'"
+            @click="selectChat(item.id)"
           >
             <div class="text-sm font-medium truncate">
               {{ item.title || 'Chưa đặt tiêu đề' }}
@@ -275,7 +372,7 @@ onMounted(async () => {
     <div class="flex-1 flex flex-col">
       <div class="border-b p-4 flex items-center justify-between gap-4">
         <div>
-          <h2 class="text-lg font-semibold">{{ currentSessionTitle }}</h2>
+          <h2 class="text-lg font-semibold">{{ currentChatTitle }}</h2>
           <p class="text-sm text-muted-foreground">{{ currentModelLabel }}</p>
         </div>
         <Select v-model="selectedModel" :disabled="loadingModels || availableModels.length === 0">
@@ -306,7 +403,7 @@ onMounted(async () => {
         <div v-else class="space-y-5 max-w-3xl mx-auto py-4">
           <div
             v-for="(message, index) in messages"
-            :key="index"
+            :key="message.id || index"
             class="flex gap-3"
             :class="message.role === 'user' ? 'flex-row-reverse' : 'flex-row'"
           >
@@ -323,21 +420,6 @@ onMounted(async () => {
               >
                 {{ message.content }}
               </div>
-              <details v-if="message.contextChunks?.length" class="text-xs opacity-80">
-                <summary>📎 Nguồn tham chiếu ({{ message.contextChunks.length }})</summary>
-                <div class="mt-2 space-y-2">
-                  <div
-                    v-for="(chunk, cidx) in message.contextChunks"
-                    :key="cidx"
-                    class="border border-border/40 rounded-lg p-2 bg-background/70 text-left"
-                  >
-                    <div class="text-[11px] opacity-70 mb-1">
-                      {{ chunk.docId }} / {{ chunk.chunkId }} · điểm {{ chunk.score?.toFixed(4) ?? '—' }}
-                    </div>
-                    <div class="whitespace-pre-wrap text-xs">{{ chunk.content }}</div>
-                  </div>
-                </div>
-              </details>
               <div class="text-[11px] text-muted-foreground">
                 {{ message.createdAt ? new Date(message.createdAt).toLocaleTimeString('vi-VN') : '' }}
               </div>
